@@ -22,7 +22,7 @@ export const copilotPromptOptions: PromptOptions = {
   additionalRules: [
     // The stock rules allow made-up data; the copilot must only show what its tools returned.
     ...(openuiPromptOptions.additionalRules ?? []).filter((rule) => !/plausible data/i.test(rule)),
-    "Use your tools before answering. well_snapshot gives one well's state right now (call it for any question about a single well's current status). ping is a health check: call it only when asked.",
+    "Use your tools before answering. well_snapshot gives one well's state right now (call it for any question about a single well's current status).",
     "Never write OpenUI Lang in reasoning, progress messages or tool arguments.",
     "After all tool work is done, your final message is pure OpenUI Lang: no markdown fences, no prose outside components. The root is always a Stack.",
     "Every answer's root Stack ends with a Sources component listing every record and document section you used.",

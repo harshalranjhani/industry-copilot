@@ -84,7 +84,7 @@ CREATE VIEW latest_inspections AS
 SELECT
   e.*,
   w.recorded_status,
-  (w.recorded_status = 'active') <> e.producing AS status_mismatch
+  COALESCE(w.recorded_status = 'active', 0) <> e.producing AS status_mismatch
 FROM (
   SELECT *, ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY inspected_at DESC) AS recency
   FROM effective_inspections
