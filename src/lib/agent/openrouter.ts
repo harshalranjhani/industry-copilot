@@ -12,7 +12,7 @@ import { buildSystemPrompt } from "./system-prompt";
 /** Production chat wiring: Pi on OpenRouter with the configured default model. */
 export function openRouterChatOptions(): ChatHandlerOptions {
   const { openRouterApiKey, defaultModelId } = readConfig();
-  const { dbPath } = readDataConfig();
+  const { dbPath, knowledgePath, asOf } = readDataConfig();
   if (!existsSync(dbPath)) throw new Error(`No data store at ${dbPath}. Run \`pnpm load\` first.`);
   const models = createModels();
   models.setProvider(openrouterProvider());
@@ -22,7 +22,7 @@ export function openRouterChatOptions(): ChatHandlerOptions {
     models,
     model,
     systemPrompt: buildSystemPrompt(),
-    tools: createCopilotTools(openFleet(dbPath)),
+    tools: createCopilotTools(openFleet(dbPath, { knowledgePath, asOf })),
     getApiKey: (provider) => (provider === "openrouter" ? openRouterApiKey : undefined),
   };
 }

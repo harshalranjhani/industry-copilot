@@ -1,18 +1,24 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { type Manual, parseRules } from "./rules";
-import { TABLES_SQL, VIEWS_SQL } from "./schema";
+import { type DatasetNote, replaceDatasetKnowledge } from "./knowledge";
+import { type Manual, parseRules, parseSopRules, type Sop } from "./rules";
+import { TABLES_SQL } from "./schema";
 
 export interface LoadOptions {
   /** Dataset roots, each holding `fleet/` and `assets/`. Later roots win on ID collisions. */
   roots: string[];
   dbPath: string;
+  /** The durable knowledge store; only its dataset-origin entries are replaced. */
+  knowledgePath: string;
 }
 
 export interface LoadSummary {
   wells: number;
   inspections: number;
+  repairs: number;
+  regulatoryEvents: number;
+  notes: number;
   users: number;
   areas: number;
   rules: number;
@@ -39,10 +45,10 @@ const orNull = <T>(value: T | undefined): T | null => value ?? null;
 /**
  * Rebuilds the data store from scratch out of the given dataset roots. Records
  * are upserted by primary ID, so a later root extends or overrides an earlier one.
- * Never touches anything but `dbPath`: the knowledge store is separate (ADR 0001).
+ * Dataset notes go to the knowledge store, replacing only dataset-origin entries (ADR 0001).
  * Throws, naming the document, when a required rule can't be parsed.
  */
-export function loadDataset({ roots, dbPath }: LoadOptions): LoadSummary {
+export function loadDataset({ roots, dbPath, knowledgePath }: LoadOptions): LoadSummary {
   if (roots.length === 0) throw new Error("No dataset roots given");
   for (const root of roots) {
     if (!existsSync(join(root, "fleet"))) throw new Error(`Dataset root has no fleet/ folder: ${root}`);
@@ -54,7 +60,7 @@ export function loadDataset({ roots, dbPath }: LoadOptions): LoadSummary {
   rmSync(buildPath, { force: true });
   const db = new DatabaseSync(buildPath);
   try {
-    db.exec(TABLES_SQL + VIEWS_SQL);
+    db.exec(TABLES_SQL);
 
     const upsert = (table: string, row: Record<string, unknown>) => {
       const columns = Object.keys(row);
@@ -64,6 +70,8 @@ export function loadDataset({ roots, dbPath }: LoadOptions): LoadSummary {
     };
 
     const manuals = new Map<string, Manual>();
+    const sops = new Map<string, Sop>();
+    const notes = new Map<string, DatasetNote>();
     db.exec("BEGIN");
     for (const root of roots) {
       const fleetDir = join(root, "fleet");
@@ -102,6 +110,7 @@ export function loadDataset({ roots, dbPath }: LoadOptions): LoadSummary {
           const stem = basename(file, ".md");
           const documentId = /Document ID:\s*(\S+)/.exec(text)?.[1] ?? stem;
           upsert("documents", { path: `${folder}/${file}`, kind, document_id: documentId, text });
+          if (kind === "sop") sops.set(`${folder}/${file}`, { documentId, text });
           if (kind === "manual") {
             const wellType = /well_type\s*=\s*"([^"]+)"/.exec(text)?.[1] ?? stem;
             manuals.set(wellType, { wellType, documentId, text });
@@ -141,10 +150,48 @@ export function loadDataset({ roots, dbPath }: LoadOptions): LoadSummary {
             notes: orNull(ins.notes),
           });
         }
+        for (const job of readJsonl(join(dir, "maintenance.jsonl"))) {
+          upsert("maintenance", {
+            maintenance_id: job.maintenance_id,
+            asset_id: job.asset_id ?? meta.asset_id,
+            started_at: job.started_at,
+            completed_at: orNull(job.completed_at),
+            maintenance_type: orNull(job.maintenance_type),
+            equipment_kind: orNull(job.equipment_kind),
+            issue: orNull(job.issue),
+            action_taken: orNull(job.action_taken),
+            technician_user_id: orNull(job.technician_user_id),
+            contractor: orNull(job.contractor),
+            downtime_hours: orNull(job.downtime_hours),
+            cost_labor_usd: orNull(job.cost_usd?.labor),
+            cost_parts_usd: orNull(job.cost_usd?.parts),
+            cost_total_usd: orNull(job.cost_usd?.total),
+            triggered_by_inspection_id: orNull(job.triggered_by_inspection_id),
+            report_file: orNull(job.report_file),
+          });
+        }
+        for (const event of readJsonl(join(dir, "regulatory-events.jsonl"))) {
+          upsert("regulatory_events", {
+            event_id: event.event_id,
+            asset_id: event.asset_id ?? meta.asset_id,
+            date: event.date,
+            agency: orNull(event.agency),
+            event_type: orNull(event.event_type),
+            protocol_id: orNull(event.protocol_id),
+            related_inspection_id: orNull(event.related_inspection_id),
+            hours_to_report: orNull(event.hours_to_report),
+            detail: orNull(event.detail),
+            fine_usd: orNull(event.fine_usd),
+            status: orNull(event.status),
+          });
+        }
+        for (const note of readJsonl(join(dir, "context.jsonl"))) {
+          notes.set(note.note_id, { ...(note as DatasetNote), asset_id: note.asset_id ?? meta.asset_id });
+        }
       }
     }
 
-    const rules = parseRules([...manuals.values()]);
+    const rules = [...parseRules([...manuals.values()]), ...parseSopRules([...sops.values()])];
     for (const rule of rules) {
       upsert("rules", {
         well_type: rule.wellType,
@@ -162,12 +209,16 @@ export function loadDataset({ roots, dbPath }: LoadOptions): LoadSummary {
     const summary: LoadSummary = {
       wells: count("wells"),
       inspections: count("inspections"),
+      repairs: count("maintenance"),
+      regulatoryEvents: count("regulatory_events"),
+      notes: notes.size,
       users: count("users"),
       areas: count("areas"),
       rules: count("rules"),
       documents: count("documents"),
     };
     db.close();
+    replaceDatasetKnowledge(knowledgePath, [...notes.values()]);
     rmSync(dbPath, { force: true });
     renameSync(buildPath, dbPath);
     return summary;

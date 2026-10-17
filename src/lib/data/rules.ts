@@ -8,6 +8,14 @@ export interface Rule {
   section: string;
 }
 
+/** Well type of a rule that applies fleet-wide, such as the spill class bounds in the Spill Response SOP. */
+export const FLEET_WIDE = "*";
+
+export interface Sop {
+  documentId: string;
+  text: string;
+}
+
 export interface Manual {
   wellType: string;
   documentId: string;
@@ -141,4 +149,31 @@ export function parseRules(manuals: Manual[]): Rule[] {
       return { ...rule, wellType: manual.wellType };
     }),
   );
+}
+
+const SPILL_CLASS_BOUNDS = [
+  { cls: "Moderate", key: "spill_class_moderate_min_bbl" },
+  { cls: "Reportable", key: "spill_class_reportable_min_bbl" },
+  { cls: "Major", key: "spill_class_major_min_bbl" },
+] as const;
+
+/**
+ * Parses the spill class volume bounds (the lower bound of Moderate,
+ * Reportable and Major) from the table in the SOP's "Spill classes" section.
+ * Fails naming the SOP when no SOP states them.
+ */
+export function parseSopRules(sops: Sop[]): Rule[] {
+  for (const sop of sops) {
+    const section = sections(sop.text).find((s) => /^#{2,3} \d+(?:\.\d+)?\.? Spill classes/im.test(s.text));
+    if (!section) continue;
+    const rules: Rule[] = [];
+    for (const { cls, key } of SPILL_CLASS_BOUNDS) {
+      const value = toNumber(new RegExp(`^\\|\\s*${cls}\\s*\\|\\s*(\\d+(?:\\.\\d+)?)\\s*bbl`, "im").exec(section.text)?.[1]);
+      if (value === undefined) throw new Error(`Spill class bound "${key}" not found in ${sop.documentId}`);
+      rules.push({ wellType: FLEET_WIDE, key, value, unit: "bbl", document: sop.documentId, section: section.number });
+    }
+    return rules;
+  }
+  const names = sops.map((s) => s.documentId).join(", ") || "no SOP";
+  throw new Error(`Spill class bounds not found: no SOP has a "Spill classes" section (looked in ${names}; the spill class table is expected in SOP-SR)`);
 }

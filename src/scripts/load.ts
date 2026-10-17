@@ -2,9 +2,9 @@ import { readDataConfig } from "../lib/data/config";
 import { loadDataset } from "../lib/data/loader";
 
 // `pnpm load`: rebuilds the data store from the DATA_DIRS roots.
-const { roots, dbPath } = readDataConfig();
+const { roots, dbPath, knowledgePath } = readDataConfig();
 try {
-  const summary = loadDataset({ roots, dbPath });
+  const summary = loadDataset({ roots, dbPath, knowledgePath });
   console.log(`Loaded ${roots.join(", ")} into ${dbPath}`);
   console.log(summary);
 } catch (err) {

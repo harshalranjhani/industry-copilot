@@ -1,9 +1,11 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SAMPLE_DATA_DIR } from "./config";
-import { type Fleet, openFleet } from "./fleet";
+import { type Fleet, openFleet, QueryError } from "./fleet";
+import { VIEW_DOCS } from "./schema";
+import { openKnowledgeStore } from "./knowledge";
 import { loadDataset } from "./loader";
 
 // Golden checks for the sample dataset's example questions: facts the
@@ -14,8 +16,9 @@ let fleet: Fleet;
 beforeAll(() => {
   workDir = mkdtempSync(join(tmpdir(), "copilot-golden-"));
   const dbPath = join(workDir, "copilot.db");
-  loadDataset({ roots: [SAMPLE_DATA_DIR], dbPath });
-  fleet = openFleet(dbPath);
+  const knowledgePath = join(workDir, "knowledge.db");
+  loadDataset({ roots: [SAMPLE_DATA_DIR], dbPath, knowledgePath });
+  fleet = openFleet(dbPath, { knowledgePath, asOf: "2026-10-17" });
 });
 
 afterAll(() => {
@@ -44,6 +47,251 @@ describe("Q1: is WELL-0001 producing oil right now?", () => {
   });
 });
 
+const rowsOf = (sql: string) => fleet.query(sql).rows;
+
+describe("Q4: WELL-0001's spills in the last 4 years", () => {
+  it("counts 6 real spills totalling 15.1 bbl, leaving out the detection corrected as rainwater", () => {
+    const spills = rowsOf(
+      "SELECT inspection_id, inspected_on, spill_effective_volume_bbl AS bbl FROM spills WHERE asset_id = 'WELL-0001' ORDER BY inspected_at",
+    );
+
+    expect(spills.map((s) => [s.inspected_on, s.bbl])).toEqual([
+      ["2023-03-16", 0.5],
+      ["2023-04-27", 2.6],
+      ["2023-09-28", 3.3],
+      ["2023-10-19", 0.3],
+      ["2026-06-11", 6.8],
+      ["2026-10-01", 1.6],
+    ]);
+    expect(spills.map((s) => s.inspection_id)).not.toContain("INS-0001-0070");
+    expect(rowsOf("SELECT ROUND(SUM(spill_effective_volume_bbl), 1) AS total FROM spills WHERE asset_id = 'WELL-0001'")).toEqual([{ total: 15.1 }]);
+  });
+
+  it("classifies each by its volume against the Spill Response SOP's bounds", () => {
+    const classes = rowsOf(
+      "SELECT spill_class FROM spills WHERE asset_id = 'WELL-0001' ORDER BY inspected_at",
+    ).map((r) => r.spill_class);
+
+    expect(classes).toEqual(["minor", "moderate", "moderate", "minor", "reportable", "moderate"]);
+    expect(
+      rowsOf("SELECT COUNT(*) AS n FROM spills WHERE spill_effective_volume_bbl >= 25 AND spill_class <> 'major'"),
+    ).toEqual([{ n: 0 }]);
+  });
+
+  it("keeps the original detection beside the effective value and names the correction", () => {
+    expect(
+      rowsOf("SELECT spill_detected_original, is_spill, correction_id FROM effective_inspections WHERE inspection_id = 'INS-0001-0070'"),
+    ).toEqual([{ spill_detected_original: 1, is_spill: 0, correction_id: "CTX-0001-001" }]);
+  });
+});
+
+describe("well_snapshot: reasons for a stop", () => {
+  it("Q1: carries the valid shut-in note that explains WELL-0001's stop", () => {
+    const notes = fleet.wellSnapshot("WELL-0001")?.validNotes ?? [];
+
+    expect(notes.find((n) => n.noteId === "CTX-0001-003")).toMatchObject({
+      authorName: "Jake Morales",
+      validFrom: "2026-10-07",
+      validTo: "2026-10-20",
+    });
+    expect(notes.find((n) => n.noteId === "CTX-0001-003")?.text).toMatch(/rod string replacement/);
+  });
+
+  it("leaves out notes that have expired by AS_OF", () => {
+    const ids = (fleet.wellSnapshot("WELL-0101")?.validNotes ?? []).map((n) => n.noteId);
+
+    expect(ids).not.toContain("CTX-0101-001");
+    expect(ids).toEqual(expect.arrayContaining(["CTX-0101-002", "CTX-0101-003"]));
+  });
+
+  it("Q2: lists the open repair behind WELL-0170's stop, and none for WELL-0164", () => {
+    expect(fleet.wellSnapshot("WELL-0170")?.openRepairs).toEqual([
+      expect.objectContaining({ maintenanceId: "MNT-0170-031", startedAt: "2026-09-19T08:00:00Z" }),
+    ]);
+    expect(fleet.wellSnapshot("WELL-0164")?.openRepairs).toEqual([]);
+  });
+});
+
+describe("Q3: WELL-0001's last 13 weeks", () => {
+  it("gives 13 readings from 23 Jul to 15 Oct, not producing on 8 and 15 Oct", () => {
+    const readings = rowsOf(
+      "SELECT inspected_on, wellhead_temp_c, ambient_temp_c, producing FROM effective_inspections WHERE asset_id = 'WELL-0001' ORDER BY inspected_at DESC LIMIT 13",
+    ).reverse();
+
+    expect(readings).toHaveLength(13);
+    expect(readings[0]?.inspected_on).toBe("2026-07-23");
+    expect(readings.at(-1)?.inspected_on).toBe("2026-10-15");
+    expect(readings.filter((r) => !r.producing).map((r) => r.inspected_on)).toEqual(["2026-10-08", "2026-10-15"]);
+  });
+});
+
+describe("downtime", () => {
+  it("Q5: WELL-0001 was down 21 days in 2025, from three non-producing inspections", () => {
+    const days = rowsOf(
+      "SELECT inspected_on, downtime_days FROM downtime WHERE asset_id = 'WELL-0001' AND inspected_on >= '2025-01-01' AND inspected_on < '2026-01-01' ORDER BY inspected_at",
+    );
+
+    expect(days).toEqual([
+      { inspected_on: "2025-07-24", downtime_days: 7 },
+      { inspected_on: "2025-10-16", downtime_days: 7 },
+      { inspected_on: "2025-10-23", downtime_days: 7 },
+    ]);
+  });
+});
+
+describe("relative periods end today and are compared by date", () => {
+  // "Last N months/days" runs from date(AS_OF, '-N months'|'-N days') through AS_OF, both inclusive.
+  it("Q6: the 3 wells with most downtime in Northeast Block 7 over the last 4 months", () => {
+    const ranking = rowsOf(
+      `SELECT asset_id, SUM(downtime_days) AS days FROM downtime
+       WHERE area_name = 'Northeast Block 7' AND inspected_on >= date('2026-10-17', '-4 months') AND inspected_on <= '2026-10-17'
+       GROUP BY asset_id ORDER BY days DESC LIMIT 4`,
+    );
+
+    expect(ranking[0]).toEqual({ asset_id: "WELL-0121", days: 49 });
+    // WELL-0138 and WELL-0107 tie at 42 days, so their order is not part of the answer.
+    expect(ranking.slice(1, 3)).toEqual(expect.arrayContaining([
+      { asset_id: "WELL-0138", days: 42 },
+      { asset_id: "WELL-0107", days: 42 },
+    ]));
+    expect(ranking[3]).toEqual({ asset_id: "WELL-0119", days: 28 });
+  });
+
+  it("Q7: 4 real spills in Northeast Block 8 in the last 90 days, with their locations", () => {
+    const spills = rowsOf(
+      `SELECT asset_id, inspected_on, spill_effective_volume_bbl AS bbl, lat, lon FROM spills
+       WHERE area_name = 'Northeast Block 8' AND inspected_on >= date('2026-10-17', '-90 days') AND inspected_on <= '2026-10-17'
+       ORDER BY inspected_at DESC`,
+    );
+
+    expect(spills).toEqual([
+      { asset_id: "WELL-0151", inspected_on: "2026-09-24", bbl: 4.5, lat: 32.12246, lon: -102.18445 },
+      { asset_id: "WELL-0165", inspected_on: "2026-07-30", bbl: 1.2, lat: 32.15665, lon: -102.14522 },
+      { asset_id: "WELL-0175", inspected_on: "2026-07-30", bbl: 3.9, lat: 32.1802, lon: -102.1479 },
+      { asset_id: "WELL-0186", inspected_on: "2026-07-23", bbl: 0.6, lat: 32.17552, lon: -102.17775 },
+    ]);
+  });
+});
+
+describe("Q8: 2026 spills by area and month", () => {
+  it("totals 35, 43, 37 and 26, with corrected detections removed", () => {
+    const totals = rowsOf(
+      "SELECT area_name, COUNT(*) AS spills FROM spills WHERE inspected_month BETWEEN '2026-01' AND '2026-10' GROUP BY area_name ORDER BY area_name",
+    );
+
+    expect(totals).toEqual([
+      { area_name: "Northeast Block 7", spills: 37 },
+      { area_name: "Northeast Block 8", spills: 26 },
+      { area_name: "Southwest Block 23", spills: 35 },
+      { area_name: "Southwest Block 24", spills: 43 },
+    ]);
+    expect(
+      rowsOf("SELECT inspected_month, COUNT(*) AS spills FROM spills WHERE area_name = 'Southwest Block 23' AND inspected_month BETWEEN '2026-01' AND '2026-03' GROUP BY 1"),
+    ).toEqual([
+      { inspected_month: "2026-01", spills: 4 },
+      { inspected_month: "2026-02", spills: 3 },
+      { inspected_month: "2026-03", spills: 3 },
+    ]);
+  });
+});
+
+describe("Q2: Northeast Block 8's non-producing wells right now", () => {
+  it("lists WELL-0164, 0170, 0172 and 0175 with their deltas and recorded statuses", () => {
+    const wells = rowsOf(
+      `SELECT asset_id, inspected_on, delta_c, recorded_status, status_mismatch, notes FROM latest_inspections
+       WHERE area_name = 'Northeast Block 8' AND NOT producing ORDER BY asset_id`,
+    );
+
+    expect(wells.map((w) => [w.asset_id, w.inspected_on, w.delta_c, w.recorded_status, w.status_mismatch])).toEqual([
+      ["WELL-0164", "2026-10-15", 4.1, "active", 1],
+      ["WELL-0170", "2026-10-15", 2.9, "down", 0],
+      ["WELL-0172", "2026-10-15", 5.7, "active", 1],
+      ["WELL-0175", "2026-10-15", 0.4, "active", 1],
+    ]);
+    expect(wells[0]?.notes).toBe("Pump jack not moving.");
+  });
+
+  it("finds the open repairs that explain two of them and none for the others", () => {
+    const open = rowsOf(
+      `SELECT asset_id, maintenance_id, started_on, issue FROM repairs
+       WHERE is_open AND asset_id IN ('WELL-0164', 'WELL-0170', 'WELL-0172', 'WELL-0175') ORDER BY asset_id`,
+    );
+
+    expect(open.map((r) => [r.asset_id, r.maintenance_id, r.started_on])).toEqual([
+      ["WELL-0170", "MNT-0170-031", "2026-09-19"],
+      ["WELL-0172", "MNT-0172-028", "2026-10-03"],
+    ]);
+  });
+});
+
+describe("Q11: repair costs this year", () => {
+  it("totals USD 25,794, 46,942 and 5,176 for WELL-0121, WELL-0138 and WELL-0107", () => {
+    const costs = rowsOf(
+      `SELECT asset_id, SUM(cost_usd) AS usd FROM repairs
+       WHERE asset_id IN ('WELL-0121', 'WELL-0138', 'WELL-0107') AND started_on >= '2026-01-01' AND started_on <= '2026-10-17'
+       GROUP BY asset_id ORDER BY asset_id`,
+    );
+
+    expect(costs).toEqual([
+      { asset_id: "WELL-0107", usd: 5176 },
+      { asset_id: "WELL-0121", usd: 25794 },
+      { asset_id: "WELL-0138", usd: 46942 },
+    ]);
+  });
+});
+
+describe("query: read-only SQL over the documented views", () => {
+  it("answers a SELECT over a view", () => {
+    const result = fleet.query("SELECT COUNT(*) AS wells FROM latest_inspections");
+
+    expect(result.columns).toEqual(["wells"]);
+    expect(result.rows).toEqual([{ wells: 200 }]);
+    expect(result.truncated).toBe(false);
+  });
+
+  it("caps the rows it returns and says so", () => {
+    const result = fleet.query("SELECT inspection_id FROM effective_inspections", { maxRows: 5 });
+
+    expect(result.rows).toHaveLength(5);
+    expect(result.truncated).toBe(true);
+  });
+
+  it.each([
+    ["a write", "DELETE FROM spills"],
+    ["a write to a base table", "INSERT INTO wells (asset_id, well_type) VALUES ('X', 'T200')"],
+    ["a schema change", "DROP VIEW spills"],
+    ["an attach", "ATTACH DATABASE ':memory:' AS other"],
+    ["a pragma", "PRAGMA table_info(wells)"],
+    ["two statements", "SELECT 1; DELETE FROM spills"],
+  ])("refuses %s", (_what, sql) => {
+    expect(() => fleet.query(sql)).toThrow(QueryError);
+    expect(rowsOf("SELECT COUNT(*) AS n FROM spills")[0]?.n).toBeGreaterThan(0);
+  });
+
+  it.each(["wells", "inspections", "knowledge_entries", "maintenance", "rules"])(
+    "refuses the underlying table %s and names the views that are allowed",
+    (table) => {
+      expect(() => fleet.query(`SELECT * FROM ${table} LIMIT 1`)).toThrow(/views.*effective_inspections.*spills/s);
+    },
+  );
+
+  it("refuses a base table reached through a subquery or join", () => {
+    expect(() => fleet.query("SELECT * FROM spills WHERE asset_id IN (SELECT asset_id FROM wells)")).toThrow(QueryError);
+    expect(() => fleet.query("SELECT * FROM spills s JOIN wells w ON w.asset_id = s.asset_id")).toThrow(QueryError);
+  });
+
+  it("explains a mistake in the SQL so the model can correct it", () => {
+    expect(() => fleet.query("SELECT no_such_column FROM spills")).toThrow(/no such column: no_such_column/);
+  });
+
+  it("documents exactly the columns each view has", () => {
+    for (const view of VIEW_DOCS) {
+      const actual = fleet.query(`SELECT * FROM ${view.name} LIMIT 0`).columns;
+      expect(actual, view.name).toEqual(view.columns.map((c) => c.name));
+    }
+  });
+});
+
 describe("rules parsed from the manuals", () => {
   const ruleFor = (wellType: string, key: string) => fleet.rules().find((r) => r.wellType === wellType && r.key === key);
 
@@ -66,7 +314,124 @@ describe("rules parsed from the manuals", () => {
   });
 });
 
+describe("notes become knowledge entries", () => {
+  it("links a feedback note to the inspection named in its text, and a correction through its field", () => {
+    const links = rowsOf(
+      "SELECT note_id, inspection_id, kind, status, origin FROM notes WHERE asset_id IN ('WELL-0101', 'WELL-0001') AND inspection_id IS NOT NULL ORDER BY note_id",
+    );
+
+    expect(links).toEqual([
+      { note_id: "CTX-0001-001", inspection_id: "INS-0001-0070", kind: "correction", status: "accepted", origin: "dataset" },
+      { note_id: "CTX-0101-002", inspection_id: "INS-0101-0197", kind: "note", status: "accepted", origin: "dataset" },
+      { note_id: "CTX-0101-003", inspection_id: "INS-0101-0197", kind: "note", status: "accepted", origin: "dataset" },
+    ]);
+  });
+});
+
+describe("loading several dataset roots", () => {
+  /** A scratch dataset: the sample's fleet files plus the given wells copied from it. */
+  const scratchRoot = (wells: string[]) => {
+    const root = mkdtempSync(join(tmpdir(), "copilot-root-"));
+    cpSync(join(SAMPLE_DATA_DIR, "fleet"), join(root, "fleet"), { recursive: true });
+    for (const well of wells) cpSync(join(SAMPLE_DATA_DIR, "assets", well), join(root, "assets", well), { recursive: true });
+    return root;
+  };
+  const jsonl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join("\n") + "\n";
+
+  it("upserts by ID with later roots winning, and adds what the later root brings", () => {
+    const base = scratchRoot(["WELL-0001"]);
+    const extra = mkdtempSync(join(tmpdir(), "copilot-extra-"));
+    const knowledgePath = join(base, "k.db");
+    try {
+      mkdirSync(join(extra, "fleet"), { recursive: true });
+      mkdirSync(join(extra, "assets/WELL-0001"), { recursive: true });
+      // The test set extends WELL-0001: a newer status, one more repair, and one more note.
+      const meta = JSON.parse(readFileSync(join(SAMPLE_DATA_DIR, "assets/WELL-0001/metadata.json"), "utf-8"));
+      writeFileSync(join(extra, "assets/WELL-0001/metadata.json"), JSON.stringify({ ...meta, recorded_status: "down" }));
+      writeFileSync(
+        join(extra, "assets/WELL-0001/maintenance.jsonl"),
+        jsonl([
+          {
+            maintenance_id: "MNT-0001-999", asset_id: "WELL-0001", started_at: "2026-10-16T08:00:00Z", completed_at: "2026-10-30T00:00:00Z",
+            maintenance_type: "corrective", equipment_kind: "pump_jack", issue: "Belt failure", action_taken: null,
+            technician_user_id: "U-302", contractor: null, downtime_hours: 10,
+            cost_usd: { labor: 1, parts: 2, total: 3 }, triggered_by_inspection_id: null, report_file: null,
+          },
+        ]),
+      );
+      writeFileSync(
+        join(extra, "assets/WELL-0001/context.jsonl"),
+        jsonl([
+          { asset_id: "WELL-0001", note_id: "CTX-0001-003", created_at: "2026-10-09T06:40:00Z", author_user_id: "U-102", note_type: "operator_feedback", text: "Replaced by the test set.", valid_from: "2026-10-07", valid_to: null },
+        ]),
+      );
+
+      const summary = loadDataset({ roots: [base, extra], dbPath: join(base, "m.db"), knowledgePath });
+      const merged = openFleet(join(base, "m.db"), { knowledgePath, asOf: "2026-10-17" });
+      try {
+        expect(summary.wells).toBe(1);
+        expect(merged.wellSnapshot("WELL-0001")?.recordedStatus).toBe("down");
+        expect(merged.wellSnapshot("WELL-0001")?.openRepairs.map((r) => r.maintenanceId)).toEqual(["MNT-0001-999"]);
+        expect(merged.query("SELECT text FROM notes WHERE note_id = 'CTX-0001-003'").rows).toEqual([{ text: "Replaced by the test set." }]);
+        expect(merged.query("SELECT COUNT(*) AS n FROM notes WHERE asset_id = 'WELL-0001'").rows).toEqual([{ n: 3 }]);
+        expect(merged.query("SELECT COUNT(*) AS n FROM effective_inspections WHERE asset_id = 'WELL-0001'").rows[0]?.n).toBeGreaterThan(200);
+      } finally {
+        merged.close();
+      }
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+      rmSync(extra, { recursive: true, force: true });
+    }
+  });
+
+  it("replaces only dataset-origin knowledge on a reload", () => {
+    const root = scratchRoot(["WELL-0001"]);
+    const knowledgePath = join(root, "k.db");
+    const dbPath = join(root, "m.db");
+    try {
+      loadDataset({ roots: [root], dbPath, knowledgePath });
+      const store = openKnowledgeStore(knowledgePath);
+      store.exec(
+        `INSERT INTO knowledge_entries (entry_id, kind, scope, asset_id, text, author_user_id, created_at, valid_from, status, origin)
+         VALUES ('K-1', 'claim', 'well', 'WELL-0001', 'Back online since 14 Oct.', 'U-102', '2026-10-17T09:00:00Z', '2026-10-14', 'unconfirmed', 'chat')`,
+      );
+      store.close();
+      // The reloaded dataset no longer carries WELL-0001's notes.
+      rmSync(join(root, "assets/WELL-0001/context.jsonl"));
+
+      loadDataset({ roots: [root], dbPath, knowledgePath });
+      const reloaded = openFleet(dbPath, { knowledgePath, asOf: "2026-10-17" });
+      try {
+        expect(reloaded.query("SELECT note_id, origin FROM notes WHERE asset_id = 'WELL-0001'").rows).toEqual([
+          { note_id: "K-1", origin: "chat" },
+        ]);
+        // With the dataset correction gone, the rainwater detection counts as a spill again.
+        expect(reloaded.query("SELECT is_spill FROM effective_inspections WHERE inspection_id = 'INS-0001-0070'").rows).toEqual([{ is_spill: 1 }]);
+      } finally {
+        reloaded.close();
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("loading", () => {
+  it("fails naming the SOP when the spill classes can't be found in it", () => {
+    const root = mkdtempSync(join(tmpdir(), "copilot-nosop-"));
+    try {
+      cpSync(join(SAMPLE_DATA_DIR, "fleet/well-types"), join(root, "fleet/well-types"), { recursive: true });
+      mkdirSync(join(root, "fleet/sops"), { recursive: true });
+      writeFileSync(join(root, "fleet/sops/spill-response-sop.md"), "Document ID: SOP-SR\n\n## 1. Purpose\n\nNo classes here.\n");
+      cpSync(join(SAMPLE_DATA_DIR, "assets/WELL-0001"), join(root, "assets/WELL-0001"), { recursive: true });
+      expect(() =>
+        loadDataset({ roots: [root], dbPath: join(root, "x.db"), knowledgePath: join(root, "k.db") }),
+      ).toThrow(/SOP-SR.*spill class/i);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("fails naming the document when a required rule is missing from a manual", () => {
     const root = mkdtempSync(join(tmpdir(), "copilot-bad-"));
     try {
@@ -80,7 +445,7 @@ describe("loading", () => {
         join(root, "assets/WELL-9001/metadata.json"),
         JSON.stringify({ asset_id: "WELL-9001", well_type: "T900" }),
       );
-      expect(() => loadDataset({ roots: [root], dbPath: join(root, "bad.db") })).toThrow(/OM-T900/);
+      expect(() => loadDataset({ roots: [root], dbPath: join(root, "bad.db"), knowledgePath: join(root, "bad-knowledge.db") })).toThrow(/OM-T900/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
