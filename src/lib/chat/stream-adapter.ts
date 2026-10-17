@@ -1,3 +1,4 @@
+import { openuiNotice } from "./notice";
 import type { UsageSummary } from "./usage";
 import { type AGUIEvent, EventType, type StreamProtocolAdapter } from "@openuidev/react-headless";
 
@@ -32,6 +33,13 @@ async function* ndjsonLines(response: Response): AsyncGenerator<string> {
   if (buffer.trim()) yield buffer;
 }
 
+/** What went wrong, in the server's words when it sent `{ error }`, else by status. */
+async function failureReason(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => undefined)) as { error?: unknown } | undefined;
+  if (typeof body?.error === "string" && body.error.trim()) return body.error.trim();
+  return `The server answered with an error (${response.status}${response.statusText ? ` ${response.statusText}` : ""}). Please try again.`;
+}
+
 /**
  * Parses the chat route's stream for the OpenUI chat shell. Like OpenUI's
  * `openAIReadableStreamAdapter`, plus tool results (`role: "tool"` deltas) so
@@ -41,6 +49,13 @@ export const copilotStreamAdapter = (onUsage?: (messageId: string, usage: UsageS
   async *parse(response: Response): AsyncIterable<AGUIEvent> {
     const messageId = crypto.randomUUID();
     let started = false;
+
+    if (!response.ok) {
+      yield { type: EventType.TEXT_MESSAGE_START, messageId, role: "assistant" };
+      yield { type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: openuiNotice("error", "The copilot could not answer", await failureReason(response)) };
+      yield { type: EventType.TEXT_MESSAGE_END, messageId };
+      return;
+    }
 
     for await (const line of ndjsonLines(response)) {
       let chunk: ChatChunk;

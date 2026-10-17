@@ -15,9 +15,9 @@ export default async function EvalsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-black/10 px-4 py-2 dark:border-white/15">
+      <header className="copilot-header">
         <span className="text-sm font-semibold">Asset Intelligence Copilot · Evals</span>
-        <Link href="/" className="text-sm underline">
+        <Link href="/" className="copilot-link">
           Back to chat
         </Link>
       </header>
@@ -34,7 +34,7 @@ export default async function EvalsPage({ searchParams }: { searchParams: Promis
                   key={id}
                   href={`/evals?run=${encodeURIComponent(id)}`}
                   aria-current={id === selected.id ? "page" : undefined}
-                  className={`rounded-md border px-3 py-1 text-sm ${id === selected.id ? "border-current font-semibold" : "border-black/20 opacity-70 dark:border-white/25"}`}
+                  className={`rounded-md border px-3 py-1 text-sm ${id === selected.id ? "border-current font-semibold" : "border-(--openui-border-default) opacity-70"}`}
                 >
                   {run.model} · {new Date(run.startedAt).toLocaleString("en-GB", { timeZone: "UTC" })} UTC
                 </Link>

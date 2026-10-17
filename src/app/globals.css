@@ -1,8 +1,90 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+/* The same tokens the chat shell and its charts use, so every page and visual follows one palette in light and dark. */
+@import "@openuidev/react-ui/defaults.css";
+
+body {
+  background: var(--openui-background);
+  color: var(--openui-text-neutral-primary);
+  font-family: var(--openui-font-body, system-ui, sans-serif);
+}
+
+/* Page chrome: header, links, selects and notices. */
+.copilot-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--openui-foreground);
+  border-bottom: 1px solid var(--openui-border-default);
+}
+.copilot-link {
+  font-size: 0.875rem;
+  color: var(--openui-text-neutral-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.copilot-select {
+  padding: 0.25rem 0.5rem;
+  color: inherit;
+  background: var(--openui-foreground);
+  border: 1px solid var(--openui-border-default);
+  border-radius: var(--openui-radius-m, 0.5rem);
+}
+.copilot-select:focus-visible {
+  outline: 2px solid var(--openui-border-interactive-emphasis);
+  outline-offset: 1px;
+}
+.copilot-state {
+  max-width: 36rem;
+  margin: 1.5rem;
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  background: var(--openui-foreground);
+  border: 1px solid var(--openui-border-default);
+  border-radius: var(--openui-radius-l, 0.75rem);
+}
+.copilot-state--error {
+  background: var(--openui-danger-background);
+  border-color: var(--openui-border-danger);
+}
+.copilot-state h2 {
+  margin: 0 0 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.copilot-state p {
+  margin: 0;
+  color: var(--openui-text-neutral-secondary);
+}
+
+/* Answer visuals: the map sits in the same bordered, rounded frame as cards and charts. */
+.copilot-map {
+  border: 1px solid var(--openui-border-default);
+  border-radius: var(--openui-radius-l, 0.75rem);
+}
+.copilot-pin {
+  fill: var(--openui-text-brand);
+  stroke: var(--openui-foreground);
+}
+.copilot-map .leaflet-popup-content-wrapper,
+.copilot-map .leaflet-popup-tip {
+  color: var(--openui-text-neutral-primary);
+  background: var(--openui-popover-background);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-openui-theme="light"]) .copilot-map .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+  }
+}
+:root[data-openui-theme="dark"] .copilot-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
 
 .copilot-sources {
-  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  border-top: 1px solid var(--openui-border-default);
   padding-top: 0.75rem;
   font-size: 0.8125rem;
 }
@@ -12,7 +94,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  opacity: 0.7;
+  color: var(--openui-text-neutral-secondary);
 }
 .copilot-sources ul {
   margin: 0;
@@ -30,13 +112,18 @@
 .copilot-sources-kind {
   font-size: 0.6875rem;
   text-transform: uppercase;
-  opacity: 0.6;
   min-width: 6.5rem;
+  color: var(--openui-text-neutral-secondary);
+  letter-spacing: 0.03em;
 }
 .copilot-sources code {
+  padding: 0 0.375rem;
+  font-family: var(--openui-font-code, monospace);
   font-size: 0.75rem;
+  background: var(--openui-sunk);
+  border-radius: var(--openui-radius-s, 0.375rem);
 }
 .copilot-sources-empty {
   margin: 0;
-  opacity: 0.6;
+  color: var(--openui-text-neutral-secondary);
 }

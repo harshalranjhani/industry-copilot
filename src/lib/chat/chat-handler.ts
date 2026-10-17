@@ -4,6 +4,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { recallMyConversationsTool } from "@/lib/agent/recall-tool";
 import { type CopilotUser, USER_HEADER } from "@/lib/conversations/identity";
 import { conversationTitle, digestFromAnswer, messageText } from "@/lib/conversations/memory";
+import { openuiNotice } from "@/lib/chat/notice";
 import { MODEL_HEADER } from "@/lib/models";
 import { ConversationConflict, type ConversationStore, type DigestEntry, type UsageInput } from "@/lib/conversations/store";
 
@@ -42,16 +43,6 @@ function chunk(delta: Record<string, unknown>, finishReason: string | null = nul
     object: "chat.completion.chunk",
     choices: [{ index: 0, delta, finish_reason: finishReason }],
   })}\n`;
-}
-
-/**
- * A standalone OpenUI Lang answer holding one Callout. The chat renders content
- * as OpenUI Lang, so plain-text notices would fail to parse. A later `root`
- * overrides an earlier one, so this also replaces a partial answer that ended
- * on a statement boundary.
- */
-function openuiNotice(variant: "info" | "error", title: string, description: string): string {
-  return `\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(${JSON.stringify(variant)}, ${JSON.stringify(title)}, ${JSON.stringify(description)})\n`;
 }
 
 /**

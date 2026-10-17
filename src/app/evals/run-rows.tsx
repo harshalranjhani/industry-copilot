@@ -39,7 +39,7 @@ function StepRow({ r, expanded, toggle }: { r: StepResult; expanded: boolean; to
   const { step, grade } = r;
   return (
     <>
-      <tr className="cursor-pointer border-t border-black/10 align-top dark:border-white/15" onClick={toggle}>
+      <tr className="cursor-pointer border-t border-(--openui-border-default) align-top" onClick={toggle}>
         <td className="py-2 pr-2 font-mono">
           {/* The click bubbles to the row, which toggles. */}
           <button type="button" aria-expanded={expanded} className="underline">
@@ -47,7 +47,7 @@ function StepRow({ r, expanded, toggle }: { r: StepResult; expanded: boolean; to
           </button>
         </td>
         <td className="pr-2">{step.question}</td>
-        <td className={`pr-2 font-semibold ${grade.pass ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+        <td className={`pr-2 font-semibold ${grade.pass ? "text-(--openui-text-success-primary)" : "text-(--openui-text-danger-primary)"}`}>
           {grade.pass ? "pass" : "fail"}
         </td>
         <td className="pr-2">
@@ -60,14 +60,14 @@ function StepRow({ r, expanded, toggle }: { r: StepResult; expanded: boolean; to
       {expanded && (
         <tr>
           <td colSpan={7} className="pb-4">
-            <div className="flex flex-col gap-4 rounded-md border border-black/10 p-4 dark:border-white/15">
+            <div className="flex flex-col gap-4 rounded-md border border-(--openui-border-default) p-4">
               <p className="text-xs opacity-70">
                 {step.user} · {step.chat === "new" ? "new chat" : "continued chat"} · expected visual {step.expectedVisual} (matched:{" "}
                 {grade.visualMatches ? "yes" : "no"}) · sources cited: {grade.sourcesCited ? "yes" : "no"}
               </p>
               <FactList title="Expected facts" facts={step.expectedFacts} />
               <FactList title="Missed facts" facts={grade.missedFacts} empty="None missed." />
-              {r.error && <p className="text-sm text-red-700 dark:text-red-400">Error: {r.error}</p>}
+              {r.error && <p className="text-sm text-(--openui-text-danger-primary)">Error: {r.error}</p>}
               {grade.comment && <p className="text-sm">Grader: {grade.comment}</p>}
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase opacity-70">Answer</h3>

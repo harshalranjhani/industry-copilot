@@ -51,7 +51,7 @@ export function GeoMapView({ points: raw }: { points?: unknown }) {
   syncRef.current = ({ map, layer, L }) => {
     layer.clearLayers();
     for (const p of points) {
-      L.circleMarker([p.lat, p.lon], { radius: 8, weight: 2, fillOpacity: 0.7 })
+      L.circleMarker([p.lat, p.lon], { radius: 8, weight: 2, fillOpacity: 0.85, className: "copilot-pin" })
         .bindPopup(popupContent(p))
         .addTo(layer);
     }
@@ -73,7 +73,7 @@ export function GeoMapView({ points: raw }: { points?: unknown }) {
       role="region"
       aria-label="Map"
       className="copilot-map"
-      style={{ height: 320, width: "100%", borderRadius: 8, overflow: "hidden" }}
+      style={{ height: 320, width: "100%", overflow: "hidden" }}
     />
   );
 }

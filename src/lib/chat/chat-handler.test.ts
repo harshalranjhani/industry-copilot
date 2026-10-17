@@ -5,6 +5,7 @@ import {
   fauxText,
   fauxToolCall,
 } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type Message, processStreamedMessage } from "@openuidev/react-headless";
 import { createParser } from "@openuidev/react-lang";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -52,7 +53,7 @@ let workDir: string;
 let stores: ConversationStore[];
 
 /** A chat route over the conversation file; calling it again simulates a server restart. */
-function startServer(): ReturnType<typeof createChatHandler> {
+function startServer(tools: AgentTool<any>[] = [pingTool]): ReturnType<typeof createChatHandler> {
   const store = openConversationStore(join(workDir, "conversations.db"));
   stores.push(store);
   const models = createModels();
@@ -63,7 +64,7 @@ function startServer(): ReturnType<typeof createChatHandler> {
     defaultModelId: "faux-a",
     systemPrompt: ({ user, memory }) =>
       `You are a test copilot talking to ${user.name}.\n${memory.map((m) => `Earlier: ${m.question} -> ${m.summary} [${m.wells.join(", ")}]`).join("\n")}`,
-    tools: [pingTool],
+    tools,
     conversations: store,
     findUser: (id) => USERS.find((u) => u.userId === id),
     areaNames: ["Northeast Block 7"],
@@ -189,6 +190,27 @@ describe("chat route", () => {
     await readChunks(await chat(post({ threadId: "t2", messages: [{ role: "user", content: "other" }] })));
 
     expect(userTextsSeen).toEqual([["first"], ["first", "second"], ["other"]]);
+  });
+
+  it("reports a failing tool as an errored tool result and still lets the model answer", async () => {
+    const brokenTool: AgentTool<any> = {
+      ...pingTool,
+      execute: async () => {
+        throw new Error("Database is locked");
+      },
+    };
+    chat = startServer([brokenTool]);
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("ping", {}, { id: "call-1" })], { stopReason: "toolUse" }),
+      fauxAssistantMessage([fauxText(ANSWER)]),
+    ]);
+
+    const chunks = await readChunks(await chat(post({ threadId: "t1", messages: [{ role: "user", content: "ping" }] })));
+
+    const failed = chunks.map((c) => c.choices[0]?.delta as Record<string, unknown>).find((d) => d.role === "tool");
+    expect(failed).toMatchObject({ tool_call_id: "call-1", is_error: true });
+    expect(String(failed?.content)).toContain("Database is locked");
+    expect(contentOf(chunks)).toContain("Card(");
   });
 
   it("renders a model failure as an OpenUI error callout instead of unparseable text", async () => {
