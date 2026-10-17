@@ -1,11 +1,12 @@
 import { Agent } from "@earendil-works/pi-agent-core";
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
-import { copilotTools } from "@/lib/agent/tools";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 
 export interface ChatHandlerOptions {
   models: Models;
   model: Model<Api>;
   systemPrompt: string;
+  tools: AgentTool<any>[];
   /** Explicit provider key; when omitted the provider resolves its own (env) auth. */
   getApiKey?: (provider: string) => string | undefined;
 }
@@ -65,7 +66,7 @@ const STREAM_HEADERS = {
  * thread each turn, but each conversation's Pi agent owns its transcript, so
  * only the newest user message is fed into Pi.
  */
-export function createChatHandler({ models, model, systemPrompt, getApiKey }: ChatHandlerOptions) {
+export function createChatHandler({ models, model, systemPrompt, tools, getApiKey }: ChatHandlerOptions) {
   // One agent per conversation; its state.messages is the server-owned transcript.
   // In memory for now, so transcripts are lost on restart.
   const conversations = new Map<string, Agent>();
@@ -73,7 +74,7 @@ export function createChatHandler({ models, model, systemPrompt, getApiKey }: Ch
     let agent = conversations.get(conversationId);
     if (!agent) {
       agent = new Agent({
-        initialState: { systemPrompt, model, tools: copilotTools },
+        initialState: { systemPrompt, model, tools },
         streamFn: models.streamSimple.bind(models),
         sessionId: conversationId,
         getApiKey,

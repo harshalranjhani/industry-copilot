@@ -29,7 +29,10 @@ export default function Home() {
         theme={{ mode }}
         starterVariant="short"
         starters={[
-          { displayText: "Ping the tools", prompt: "Ping the tools with the message 'hello' and show me the result." },
+          {
+            displayText: "Is WELL-0001 producing?",
+            prompt: "Is WELL-0001 producing oil right now? When was it last inspected, and by whom?",
+          },
           { displayText: "What can you do?", prompt: "What can you help me with?" },
         ]}
       />

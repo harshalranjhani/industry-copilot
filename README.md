@@ -11,11 +11,12 @@ Chat copilot for oil-field operators (FlytBase Hacktoberfest 2026 Hack Day). Pi 
 ```bash
 pnpm install
 cp .env.example .env   # set OPENROUTER_API_KEY
+pnpm load              # build the data store from DATA_DIRS (default: the sample clone)
 pnpm dev               # http://localhost:3000
 ```
 
-`pnpm dev` and `pnpm build` first run `pnpm generate`, which writes the system prompt OpenUI generates from the component library (`src/library.ts`) to `src/generated/`. `pnpm test` runs the tests, `pnpm typecheck` the type checker.
+`pnpm dev` and `pnpm build` first run `pnpm generate`, which writes the system prompt OpenUI generates from the component library (`src/library.ts`) to `src/generated/`. `pnpm load` rebuilds the SQLite data store (`.data/copilot.db`) from the dataset roots in `DATA_DIRS` (path-separated, later roots win on ID collisions) and fails naming the document if a required rule can't be parsed from a manual. `pnpm golden` checks the sample dataset's known answers. `pnpm test` runs the tests, `pnpm typecheck` the type checker.
 
-Dataset: clone https://github.com/FlytBaseAILabs/flytbase-ahc-swe-asset-intelligence-dataset beside this repo's code and point `DATA_DIRS` at its `sample-data/`.
+Dataset: clone https://github.com/FlytBaseAILabs/flytbase-ahc-swe-asset-intelligence-dataset beside this repo's code and point `DATA_DIRS` at its `sample-data/` (or leave it unset to use the clone in the repo root). `AS_OF` sets today (default 2026-10-17).  
 
 License: MIT

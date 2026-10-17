@@ -8,6 +8,7 @@ import {
 import { type Message, processStreamedMessage } from "@openuidev/react-headless";
 import { createParser } from "@openuidev/react-lang";
 import { beforeEach, describe, expect, it } from "vitest";
+import { pingTool } from "@/lib/agent/tools";
 import { copilotLibrary } from "@/lib/openui/library";
 import { createChatHandler } from "./chat-handler";
 import { copilotStreamAdapter } from "./stream-adapter";
@@ -39,7 +40,12 @@ beforeEach(() => {
   faux = fauxProvider({ tokenSize: { min: 1, max: 1 } });
   const models = createModels();
   models.setProvider(faux.provider);
-  chat = createChatHandler({ models, model: faux.getModel(), systemPrompt: "You are a test copilot." });
+  chat = createChatHandler({
+    models,
+    model: faux.getModel(),
+    systemPrompt: "You are a test copilot.",
+    tools: [pingTool],
+  });
 });
 
 function post(body: unknown): Request {
