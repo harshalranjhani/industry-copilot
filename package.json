@@ -12,6 +12,8 @@
     "start": "next start",
     "load": "tsx src/scripts/load.ts",
     "golden": "vitest run src/lib/data/golden.test.ts",
+    "preeval": "pnpm generate",
+    "eval": "tsx --conditions react-server src/scripts/eval.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

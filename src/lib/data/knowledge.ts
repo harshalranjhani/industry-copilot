@@ -178,3 +178,21 @@ export function addChatEntry(path: string, entry: ChatEntry): string {
     db.close();
   }
 }
+
+/** Drops everything users taught the copilot in chat, leaving the dataset's own entries. */
+export function clearChatKnowledge(path: string): void {
+  const db = openKnowledgeStore(path);
+  try {
+    db.exec("BEGIN");
+    db.exec(
+      "DELETE FROM knowledge_inspection_links WHERE entry_id IN (SELECT entry_id FROM knowledge_entries WHERE origin = 'chat')",
+    );
+    db.exec("DELETE FROM knowledge_entries WHERE origin = 'chat'");
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  } finally {
+    db.close();
+  }
+}
