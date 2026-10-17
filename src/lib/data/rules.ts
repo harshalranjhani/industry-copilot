@@ -157,23 +157,115 @@ const SPILL_CLASS_BOUNDS = [
   { cls: "Major", key: "spill_class_major_min_bbl" },
 ] as const;
 
+interface ProtocolRuleDefinition {
+  /** The protocol whose row in an SOP's protocol table states the rule, e.g. SR-01. */
+  protocol: string;
+  key: string;
+  unit: string;
+  /** Reads the value out of the protocol's requirement text (bold markers removed), or undefined. */
+  extract: (requirement: string) => number | undefined;
+}
+
+const PROTOCOL_RULE_DEFINITIONS: ProtocolRuleDefinition[] = [
+  {
+    protocol: "SR-01",
+    key: "sr01_notice_hours",
+    unit: "hours from discovery to the written notice",
+    extract: (text) => toNumber(/within\s+(\d+)\s*hours\s+of\s+discovery/i.exec(text)?.[1]),
+  },
+  {
+    protocol: "SR-01",
+    key: "sr01_major_notice_hours",
+    unit: "hours from discovery to the written notice (major spill)",
+    extract: (text) => toNumber(/within\s+(\d+)\s*hours\s+for\s+a\s+major/i.exec(text)?.[1]),
+  },
+  {
+    protocol: "SR-02",
+    key: "sr02_containment_hours",
+    unit: "hours from discovery to containment",
+    extract: (text) => toNumber(/within\s+(\d+(?:\.\d+)?)\s*hours/i.exec(text)?.[1]),
+  },
+  {
+    protocol: "SR-03",
+    key: "sr03_verification_days",
+    unit: "days from discovery to agency verification",
+    extract: (text) => toNumber(/verified\s+within\s+(\d+)\s*days/i.exec(text)?.[1]),
+  },
+  {
+    protocol: "RC-01",
+    key: "rc01_inspection_interval_days",
+    unit: "days between inspections at most",
+    extract: (text) => toNumber(/once\s+every\s+(\d+)\s*days/i.exec(text)?.[1]),
+  },
+  {
+    protocol: "RC-02",
+    key: "rc02_flowline_tests_per_year",
+    unit: "flowline integrity tests per calendar year",
+    extract: (text) => {
+      const match = /\b(once|twice|\w+\s+times)\s+per\s+calendar\s+year/i.exec(text)?.[1]?.toLowerCase();
+      if (match === "once") return 1;
+      if (match === "twice") return 2;
+      return toNumber(match?.replace(/\s+times$/, ""));
+    },
+  },
+  {
+    protocol: "RC-04",
+    key: "rc04_response_days",
+    unit: "days from the notice of violation to the response",
+    extract: (text) => toNumber(/within\s+(\d+)\s*days/i.exec(text)?.[1]),
+  },
+];
+
+/** The requirement text of a protocol's row (`| **SR-01** | ... |`), with its section, or undefined. */
+function protocolRow(sop: Sop, protocol: string): { requirement: string; section: string } | undefined {
+  const row = new RegExp(`^\\|\\s*\\**${protocol}\\**\\s*\\|\\s*([^|]+)\\|`, "m");
+  for (const section of sections(sop.text)) {
+    const match = row.exec(section.text);
+    if (match) return { requirement: match[1]!.replaceAll("*", ""), section: section.number };
+  }
+  return undefined;
+}
+
 /**
- * Parses the spill class volume bounds (the lower bound of Moderate,
- * Reportable and Major) from the table in the SOP's "Spill classes" section.
- * Fails naming the SOP when no SOP states them.
+ * Parses the SOPs' fleet-wide rules: the spill class volume bounds (the lower
+ * bound of Moderate, Reportable and Major) from the "Spill classes" table, and
+ * the protocol deadlines and limits (SR-01, SR-02, SR-03, RC-01, RC-02, RC-04)
+ * from the protocol tables. Fails naming the SOP when a rule can't be found.
  */
 export function parseSopRules(sops: Sop[]): Rule[] {
-  for (const sop of sops) {
-    const section = sections(sop.text).find((s) => /^#{2,3} \d+(?:\.\d+)?\.? Spill classes/im.test(s.text));
-    if (!section) continue;
-    const rules: Rule[] = [];
-    for (const { cls, key } of SPILL_CLASS_BOUNDS) {
-      const value = toNumber(new RegExp(`^\\|\\s*${cls}\\s*\\|\\s*(\\d+(?:\\.\\d+)?)\\s*bbl`, "im").exec(section.text)?.[1]);
-      if (value === undefined) throw new Error(`Spill class bound "${key}" not found in ${sop.documentId}`);
-      rules.push({ wellType: FLEET_WIDE, key, value, unit: "bbl", document: sop.documentId, section: section.number });
-    }
-    return rules;
+  const rules: Rule[] = [];
+  const classes = sops
+    .map((sop) => ({ sop, section: sections(sop.text).find((s) => /^#{2,3} \d+(?:\.\d+)?\.? Spill classes/im.test(s.text)) }))
+    .find(({ section }) => section !== undefined);
+  if (!classes) {
+    const names = sops.map((s) => s.documentId).join(", ") || "no SOP";
+    throw new Error(`Spill class bounds not found: no SOP has a "Spill classes" section (looked in ${names}; the spill class table is expected in SOP-SR)`);
   }
-  const names = sops.map((s) => s.documentId).join(", ") || "no SOP";
-  throw new Error(`Spill class bounds not found: no SOP has a "Spill classes" section (looked in ${names}; the spill class table is expected in SOP-SR)`);
+  const { sop: classSop, section } = classes as { sop: Sop; section: Section };
+  for (const { cls, key } of SPILL_CLASS_BOUNDS) {
+    const value = toNumber(new RegExp(`^\\|\\s*${cls}\\s*\\|\\s*(\\d+(?:\\.\\d+)?)\\s*bbl`, "im").exec(section.text)?.[1]);
+    if (value === undefined) throw new Error(`Spill class bound "${key}" not found in ${classSop.documentId}`);
+    rules.push({ wellType: FLEET_WIDE, key, value, unit: "bbl", document: classSop.documentId, section: section.number });
+  }
+
+  for (const definition of PROTOCOL_RULE_DEFINITIONS) {
+    const found = sops
+      .map((sop) => ({ sop, row: protocolRow(sop, definition.protocol) }))
+      .find(({ row }) => row !== undefined);
+    const value = found ? definition.extract(found.row!.requirement) : undefined;
+    if (!found || value === undefined) {
+      // SR-xx protocols live in SOP-SR, RC-xx in SOP-RC.
+      const expected = found?.sop.documentId ?? `SOP-${definition.protocol.split("-")[0]}`;
+      throw new Error(`Required rule "${definition.key}" (protocol ${definition.protocol}) not found in ${expected}`);
+    }
+    rules.push({
+      wellType: FLEET_WIDE,
+      key: definition.key,
+      value,
+      unit: definition.unit,
+      document: found.sop.documentId,
+      section: `${found.row!.section} ${definition.protocol}`,
+    });
+  }
+  return rules;
 }

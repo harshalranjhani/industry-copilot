@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } 
 import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { type DatasetNote, replaceDatasetKnowledge } from "./knowledge";
+import { parseReport } from "./reports";
 import { type Manual, parseRules, parseSopRules, type Sop } from "./rules";
 import { TABLES_SQL } from "./schema";
 
@@ -17,6 +18,7 @@ export interface LoadSummary {
   wells: number;
   inspections: number;
   repairs: number;
+  reports: number;
   regulatoryEvents: number;
   notes: number;
   users: number;
@@ -169,6 +171,24 @@ export function loadDataset({ roots, dbPath, knowledgePath }: LoadOptions): Load
             triggered_by_inspection_id: orNull(job.triggered_by_inspection_id),
             report_file: orNull(job.report_file),
           });
+          // A report is found only through its repair's report_file; names vary.
+          const reportPath = job.report_file ? join(dir, job.report_file) : undefined;
+          if (reportPath && existsSync(reportPath)) {
+            const text = readFileSync(reportPath, "utf-8");
+            const facts = parseReport(text);
+            upsert("reports", {
+              maintenance_id: job.maintenance_id,
+              asset_id: job.asset_id ?? meta.asset_id,
+              report_file: job.report_file,
+              containment_hours: facts.containmentHours,
+              stated_class: facts.statedClass,
+              text,
+            });
+            db.prepare("DELETE FROM report_checks WHERE maintenance_id = ?").run(job.maintenance_id);
+            facts.checks.forEach((check, position) =>
+              upsert("report_checks", { maintenance_id: job.maintenance_id, position, ...check }),
+            );
+          }
         }
         for (const event of readJsonl(join(dir, "regulatory-events.jsonl"))) {
           upsert("regulatory_events", {
@@ -202,6 +222,7 @@ export function loadDataset({ roots, dbPath, knowledgePath }: LoadOptions): Load
         section: rule.section,
       });
     }
+    db.exec("INSERT INTO report_search (maintenance_id, asset_id, text) SELECT maintenance_id, asset_id, text FROM reports");
     db.exec("COMMIT");
 
     const count = (table: string) =>
@@ -210,6 +231,7 @@ export function loadDataset({ roots, dbPath, knowledgePath }: LoadOptions): Load
       wells: count("wells"),
       inspections: count("inspections"),
       repairs: count("maintenance"),
+      reports: count("reports"),
       regulatoryEvents: count("regulatory_events"),
       notes: notes.size,
       users: count("users"),

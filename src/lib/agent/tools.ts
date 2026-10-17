@@ -67,7 +67,45 @@ function queryTool(fleet: Fleet): AgentTool<typeof QueryParams> {
   };
 }
 
+const ReadReportParams = Type.Object({
+  maintenance_id: Type.String({ description: 'Repair (maintenance) ID, e.g. "MNT-0001-029"' }),
+});
+
+function readReportTool(fleet: Fleet): AgentTool<typeof ReadReportParams> {
+  return {
+    name: "read_report",
+    label: "Read repair report",
+    description:
+      "The free-text report of one repair, by its maintenance ID: the full text plus the facts extracted from it (containment hours, the spill class the report states, and every row of its compliance check: protocol, result, detail). Some facts exist only here, such as containment time, root cause and recommended actions. Cite the report as kind report with the maintenance ID.",
+    parameters: ReadReportParams,
+    execute: async (_toolCallId, params) => {
+      const report = fleet.report(params.maintenance_id);
+      const result = report ?? { error: `No report for repair ${params.maintenance_id} (it may have no report_file)` };
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }], details: undefined };
+    },
+  };
+}
+
+const SearchReportsParams = Type.Object({
+  text: Type.String({ description: "Words or a phrase to find, e.g. \"on-call handover\" or coupling corrosion" }),
+  asset_id: Type.Optional(Type.String({ description: "Only this well's reports" })),
+});
+
+function searchReportsTool(fleet: Fleet): AgentTool<typeof SearchReportsParams> {
+  return {
+    name: "search_reports",
+    label: "Search repair reports",
+    description:
+      "Full-text search over every repair report, best match first (up to 10). Returns each hit's maintenance ID, well, report file and a snippet with matched words in [brackets]. Use it to find reports that mention something; then read_report for the whole report. For numbers already extracted (containment hours, compliance checks of spills), prefer the spill_compliance view.",
+    parameters: SearchReportsParams,
+    execute: async (_toolCallId, params) => {
+      const hits = fleet.searchReports(params.text, { assetId: params.asset_id });
+      return { content: [{ type: "text", text: JSON.stringify({ hits, hitCount: hits.length }) }], details: undefined };
+    },
+  };
+}
+
 /** The agent's whole toolset: domain tools only, never shell, file or edit tools. */
 export function createCopilotTools(fleet: Fleet): AgentTool<any>[] {
-  return [wellSnapshotTool(fleet), queryTool(fleet)];
+  return [wellSnapshotTool(fleet), queryTool(fleet), readReportTool(fleet), searchReportsTool(fleet)];
 }

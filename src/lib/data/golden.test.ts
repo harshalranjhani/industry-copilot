@@ -275,6 +275,24 @@ describe("query: read-only SQL over the documented views", () => {
     },
   );
 
+  it("allows a WITH clause over the views, and aggregates over views built from one", () => {
+    expect(rowsOf("WITH s AS (SELECT * FROM spills WHERE asset_id = 'WELL-0001') SELECT COUNT(*) AS n FROM s")).toEqual([{ n: 6 }]);
+    expect(rowsOf("SELECT COUNT(*) AS n FROM spill_compliance WHERE asset_id = 'WELL-0001'")).toEqual([{ n: 6 }]);
+  });
+
+  it("refuses a base table reached through a WITH clause", () => {
+    expect(() => fleet.query("WITH w AS (SELECT * FROM wells) SELECT * FROM w")).toThrow(QueryError);
+  });
+
+  it("refuses a base table hidden between quoted names that contain quotes", () => {
+    expect(() => fleet.query(`SELECT 1 AS "x'", * FROM users, (SELECT 2 AS "y'") LIMIT 2`)).toThrow(QueryError);
+    expect(() => fleet.query(`SELECT * FROM "users"`)).toThrow(QueryError);
+  });
+
+  it("ignores table names inside string literals", () => {
+    expect(rowsOf("SELECT COUNT(*) AS n FROM notes WHERE text LIKE '%wells%' AND 0")).toEqual([{ n: 0 }]);
+  });
+
   it("refuses a base table reached through a subquery or join", () => {
     expect(() => fleet.query("SELECT * FROM spills WHERE asset_id IN (SELECT asset_id FROM wells)")).toThrow(QueryError);
     expect(() => fleet.query("SELECT * FROM spills s JOIN wells w ON w.asset_id = s.asset_id")).toThrow(QueryError);
@@ -311,6 +329,177 @@ describe("rules parsed from the manuals", () => {
       expect(ruleFor("T350", key), key).toMatchObject({ document: "OM-T200" });
     }
     expect(ruleFor("T350", "rca_corrective_count")?.value).toBe(3);
+  });
+});
+
+describe("repair reports", () => {
+  it("resolves a report through the repair's report_file, even with a non-standard name", () => {
+    const report = fleet.report("MNT-0001-029");
+
+    expect(report).toMatchObject({
+      maintenanceId: "MNT-0001-029",
+      assetId: "WELL-0001",
+      reportFile: "maintenance-reports/MNT-0001-june-2026-flowline-spill.md",
+      containmentHours: 7,
+      statedClass: "reportable",
+    });
+    expect(report?.text).toMatch(/contained about 7 hours after the inspection flight/);
+  });
+
+  it("extracts every compliance-check row with its protocol, result and detail", () => {
+    const checks = fleet.report("MNT-0001-029")?.checks ?? [];
+
+    expect(checks.map((c) => c.protocol)).toEqual([
+      "WS-01", "WS-02", "WS-03", "WS-04", "WS-05", "WS-06", "WS-07", "SR-01", "SR-02", "SR-03", "SR-04",
+    ]);
+    expect(checks.find((c) => c.protocol === "SR-02")).toEqual({
+      protocol: "SR-02",
+      result: "Not met",
+      detail: "Contained about 7 hours after discovery (limit 4 hours)",
+    });
+    expect(fleet.report("MNT-0001-032")?.checks.at(-1)).toMatchObject({ protocol: "Manual §10", result: "Action required" });
+  });
+
+  it("has no report for a repair without a report_file, or an unknown repair", () => {
+    expect(fleet.report("MNT-0001-030")).toBeUndefined();
+    expect(fleet.report("MNT-9999-999")).toBeUndefined();
+  });
+
+  it("finds reports by full text, narrowed to a well", () => {
+    const hits = fleet.searchReports("on-call handover", { assetId: "WELL-0001" });
+
+    expect(hits.map((h) => h.maintenanceId)).toEqual(["MNT-0001-029"]);
+    expect(hits[0]?.snippet).toMatch(/handover/i);
+  });
+
+  it("searches plain words even when they aren't valid search syntax", () => {
+    expect(fleet.searchReports('coupling "wrap', { assetId: "WELL-0001" }).map((h) => h.maintenanceId)).toContain("MNT-0001-029");
+  });
+});
+
+describe("Q9: the rules WELL-0001 broke in the last 12 months", () => {
+  it("breaches SR-01, SR-02 and SR-03 on the 11 Jun 2026 spill of 6.8 bbl", () => {
+    const [spill] = rowsOf(
+      `SELECT * FROM spill_compliance WHERE asset_id = 'WELL-0001' AND discovered_on >= date('2026-10-17', '-12 months')
+       AND (sr01_status LIKE 'breached%' OR sr02_status LIKE 'breached%' OR sr03_status LIKE 'breached%')`,
+    );
+
+    expect(spill).toMatchObject({
+      inspection_id: "INS-0001-0185",
+      discovered_at: "2026-06-11T14:30:00Z",
+      spill_effective_volume_bbl: 6.8,
+      spill_class: "reportable",
+      reporting_required: 1,
+      report_deadline_hours: 24,
+      report_event_id: "REG-0001-001",
+      hours_to_report: 41,
+      sr01_status: "breached_late",
+      repair_id: "MNT-0001-029",
+      report_file: "maintenance-reports/MNT-0001-june-2026-flowline-spill.md",
+      containment_hours: 7,
+      containment_limit_hours: 4,
+      sr02_status: "breached_late",
+      sr03_required: 1,
+      sr03_due_on: "2026-08-10",
+      sr03_event_id: "REG-0001-003",
+      sr03_status: "breached_open",
+      report_stated_class: "reportable",
+      class_mismatch: 0,
+    });
+  });
+
+  it("breaches RC-04: the notice of violation needed a response by 30 Jul 2026, and none is recorded", () => {
+    expect(
+      rowsOf(
+        `SELECT event_id, protocol_id, fine_usd, status, response_due_on, response_event_id, rc04_status FROM regulator_events
+         WHERE asset_id = 'WELL-0001' AND event_type = 'notice_of_violation'`,
+      ),
+    ).toEqual([
+      { event_id: "REG-0001-002", protocol_id: "SR-01", fine_usd: 5000, status: "open", response_due_on: "2026-07-30", response_event_id: null, rc04_status: "breached_open" },
+    ]);
+  });
+
+  it("has USD 5,000 in open fines", () => {
+    expect(rowsOf("SELECT SUM(fine_usd) AS usd FROM regulator_events WHERE asset_id = 'WELL-0001' AND status = 'open'")).toEqual([{ usd: 5000 }]);
+  });
+
+  it("met RC-02: the flowline passed its yearly integrity test on 7 Mar 2026", () => {
+    expect(
+      rowsOf("SELECT maintenance_id, started_on FROM repairs WHERE asset_id = 'WELL-0001' AND issue = 'Annual flowline integrity test' AND started_on >= '2026-01-01'"),
+    ).toEqual([{ maintenance_id: "MNT-0001-026", started_on: "2026-03-07" }]);
+  });
+
+  it("finds a response filed in time as RC-04 met", () => {
+    expect(
+      rowsOf("SELECT response_due_on, response_event_id, rc04_status FROM regulator_events WHERE event_id = 'REG-0013-002'"),
+    ).toEqual([{ response_due_on: "2026-07-27", response_event_id: "REG-0013-003", rc04_status: "met" }]);
+  });
+
+  it("lists the root-cause analysis due on the flowline as an open action: from MNT-0001-028, -029 and -032", () => {
+    expect(
+      rowsOf("SELECT corrective_repairs, repair_ids, needs_rca FROM rca_candidates WHERE asset_id = 'WELL-0001' AND equipment_kind = 'flowline'"),
+    ).toEqual([{ corrective_repairs: 3, repair_ids: "MNT-0001-028, MNT-0001-029, MNT-0001-032", needs_rca: 1 }]);
+  });
+
+  it("met SR-01 and SR-02 on the October spill, which needed no report", () => {
+    expect(
+      rowsOf("SELECT reporting_required, sr01_status, sr02_status, sr03_status FROM spill_compliance WHERE inspection_id = 'INS-0001-0201'"),
+    ).toEqual([{ reporting_required: 0, sr01_status: "not_required", sr02_status: "met", sr03_status: "not_required" }]);
+  });
+});
+
+describe("Q10: Southwest Block 24's spills in the last 90 days not contained within the SOP limit", () => {
+  it("finds WELL-0082 at about 7.1 h and WELL-0100 at about 8.1 h, against 4 h", () => {
+    const late = rowsOf(
+      `SELECT asset_id, inspection_id, repair_id, containment_hours, containment_limit_hours FROM spill_compliance
+       WHERE area_name = 'Southwest Block 24' AND discovered_on >= date('2026-10-17', '-90 days') AND discovered_on <= '2026-10-17'
+       AND sr02_status LIKE 'breached%' ORDER BY asset_id`,
+    );
+
+    expect(late).toEqual([
+      { asset_id: "WELL-0082", inspection_id: "INS-0082-0198", repair_id: "MNT-0082-028", containment_hours: 7.1, containment_limit_hours: 4 },
+      { asset_id: "WELL-0100", inspection_id: "INS-0100-0196", repair_id: "MNT-0100-034", containment_hours: 8.1, containment_limit_hours: 4 },
+    ]);
+  });
+});
+
+describe("Q14: wells needing a root-cause analysis", () => {
+  it("finds WELL-0108, WELL-0121 and WELL-0138 in Northeast Block 7, with 3 corrective pump jack repairs each, by the T200 manual", () => {
+    const candidates = rowsOf(
+      `SELECT asset_id, corrective_repairs, rca_threshold, rule_source, rule_document, rule_section FROM rca_candidates
+       WHERE area_name = 'Northeast Block 7' AND equipment_kind = 'pump_jack' AND needs_rca ORDER BY asset_id`,
+    );
+
+    expect(candidates).toEqual(
+      ["WELL-0108", "WELL-0121", "WELL-0138"].map((asset_id) => ({
+        asset_id, corrective_repairs: 3, rca_threshold: 3, rule_source: "manual", rule_document: "OM-T200", rule_section: "10",
+      })),
+    );
+  });
+
+  it("keeps the wells below the count, such as WELL-0120 and WELL-0102 with 2 repairs", () => {
+    expect(
+      rowsOf("SELECT asset_id, corrective_repairs, needs_rca FROM rca_candidates WHERE asset_id IN ('WELL-0102', 'WELL-0120') AND equipment_kind = 'pump_jack' ORDER BY asset_id"),
+    ).toEqual([
+      { asset_id: "WELL-0102", corrective_repairs: 2, needs_rca: 0 },
+      { asset_id: "WELL-0120", corrective_repairs: 2, needs_rca: 0 },
+    ]);
+  });
+});
+
+describe("rules parsed from the SOPs", () => {
+  const ruleFor = (key: string) => fleet.rules().find((r) => r.wellType === "*" && r.key === key);
+
+  it.each([
+    ["sr01_notice_hours", 24, "SOP-SR"],
+    ["sr01_major_notice_hours", 2, "SOP-SR"],
+    ["sr02_containment_hours", 4, "SOP-SR"],
+    ["sr03_verification_days", 60, "SOP-SR"],
+    ["rc01_inspection_interval_days", 14, "SOP-RC"],
+    ["rc02_flowline_tests_per_year", 1, "SOP-RC"],
+    ["rc04_response_days", 30, "SOP-RC"],
+  ])("reads %s = %d from %s", (key, value, document) => {
+    expect(ruleFor(key)).toMatchObject({ value, document });
   });
 });
 
@@ -427,6 +616,21 @@ describe("loading", () => {
       expect(() =>
         loadDataset({ roots: [root], dbPath: join(root, "x.db"), knowledgePath: join(root, "k.db") }),
       ).toThrow(/SOP-SR.*spill class/i);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails naming the SOP when one of its protocol rules can't be found", () => {
+    const root = mkdtempSync(join(tmpdir(), "copilot-norc04-"));
+    try {
+      cpSync(join(SAMPLE_DATA_DIR, "fleet"), join(root, "fleet"), { recursive: true });
+      const rcPath = join(root, "fleet/sops/regulatory-compliance-sop.md");
+      writeFileSync(rcPath, readFileSync(rcPath, "utf-8").replace(/^\| \*\*RC-04\*\*.*$/m, ""));
+      cpSync(join(SAMPLE_DATA_DIR, "assets/WELL-0001"), join(root, "assets/WELL-0001"), { recursive: true });
+      expect(() =>
+        loadDataset({ roots: [root], dbPath: join(root, "x.db"), knowledgePath: join(root, "k.db") }),
+      ).toThrow(/RC-04.*SOP-RC/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

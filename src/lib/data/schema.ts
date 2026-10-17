@@ -69,6 +69,27 @@ CREATE TABLE regulatory_events (
   status TEXT
 );
 
+-- Repair reports, found only through maintenance.report_file, with the facts
+-- that exist only in their free text.
+CREATE TABLE reports (
+  maintenance_id TEXT PRIMARY KEY,
+  asset_id TEXT NOT NULL,
+  report_file TEXT NOT NULL,
+  containment_hours REAL,
+  stated_class TEXT,
+  text TEXT NOT NULL
+);
+CREATE TABLE report_checks (
+  maintenance_id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  protocol TEXT NOT NULL,
+  result TEXT NOT NULL,
+  detail TEXT,
+  PRIMARY KEY (maintenance_id, position)
+);
+-- Filled from reports once every root is loaded.
+CREATE VIRTUAL TABLE report_search USING fts5(maintenance_id UNINDEXED, asset_id UNINDEXED, text);
+
 CREATE TABLE rules (
   well_type TEXT NOT NULL,
   key TEXT NOT NULL,
@@ -259,6 +280,155 @@ SELECT
 FROM effective_inspections e
 JOIN wells w ON w.asset_id = e.asset_id
 WHERE e.is_spill;
+
+-- Regulator events. A notice of violation must be answered within the RC-04
+-- window (from the notice date) by a nov_response_filed event for the same spill.
+CREATE TEMP VIEW regulator_events AS
+SELECT
+  e.event_id,
+  e.asset_id,
+  w.well_type,
+  w.area_id,
+  a.name AS area_name,
+  e.date,
+  e.agency,
+  e.event_type,
+  e.protocol_id,
+  e.related_inspection_id,
+  e.hours_to_report,
+  e.detail,
+  e.fine_usd,
+  e.status,
+  CASE WHEN e.event_type = 'notice_of_violation' THEN date(e.date, '+' || rc04.value || ' days') END AS response_due_on,
+  resp.event_id AS response_event_id,
+  CASE
+    WHEN e.event_type <> 'notice_of_violation' THEN NULL
+    WHEN resp.event_id IS NOT NULL AND resp.date <= date(e.date, '+' || rc04.value || ' days') THEN 'met'
+    WHEN resp.event_id IS NOT NULL THEN 'breached_late'
+    WHEN date(e.date, '+' || rc04.value || ' days') < '${asOf}' THEN 'breached_open'
+    ELSE 'pending'
+  END AS rc04_status
+FROM main.regulatory_events e
+JOIN wells w ON w.asset_id = e.asset_id
+LEFT JOIN areas a ON a.area_id = w.area_id
+JOIN rules rc04 ON rc04.well_type = '*' AND rc04.key = 'rc04_response_days'
+LEFT JOIN main.regulatory_events resp ON resp.event_id = (
+  SELECT r.event_id FROM main.regulatory_events r
+  WHERE e.event_type = 'notice_of_violation' AND r.event_type = 'nov_response_filed'
+    AND r.asset_id = e.asset_id AND r.related_inspection_id IS e.related_inspection_id AND r.date >= e.date
+  ORDER BY r.date LIMIT 1
+);
+
+-- Per well and equipment kind: corrective repairs started in the RCA window
+-- (the well type's rca_window_months before AS_OF, both ends inclusive)
+-- against the effective escalation count. rule_source says which rule applied.
+CREATE TEMP VIEW rca_candidates AS
+SELECT
+  w.asset_id,
+  w.well_type,
+  w.area_id,
+  a.name AS area_name,
+  m.equipment_kind,
+  COUNT(*) AS corrective_repairs,
+  group_concat(m.maintenance_id, ', ' ORDER BY m.started_at) AS repair_ids,
+  date('${asOf}', '-' || win.value || ' months') AS window_start,
+  win.value AS window_months,
+  cnt.value AS rca_threshold,
+  'manual' AS rule_source,
+  cnt.document AS rule_document,
+  cnt.section AS rule_section,
+  COUNT(*) >= cnt.value AS needs_rca
+FROM maintenance m
+JOIN wells w ON w.asset_id = m.asset_id
+LEFT JOIN areas a ON a.area_id = w.area_id
+JOIN rules cnt ON cnt.well_type = w.well_type AND cnt.key = 'rca_corrective_count'
+JOIN rules win ON win.well_type = w.well_type AND win.key = 'rca_window_months'
+WHERE m.maintenance_type = 'corrective'
+  AND date(m.started_at) >= date('${asOf}', '-' || win.value || ' months')
+  AND date(m.started_at) <= '${asOf}'
+GROUP BY w.asset_id, m.equipment_kind;
+
+-- Per real spill, its Spill Response SOP duties. Discovery is the inspection
+-- time. SR-01 (written notice) and SR-03 (agency verification) apply to the
+-- effective class (reportable or major); SR-02 (containment) to every spill and
+-- its hours exist only in the repair report. A deadline after AS_OF is pending.
+CREATE TEMP VIEW spill_compliance AS
+WITH r AS (
+  SELECT
+    MAX(CASE WHEN key = 'sr01_notice_hours' THEN value END) AS notice_hours,
+    MAX(CASE WHEN key = 'sr01_major_notice_hours' THEN value END) AS major_notice_hours,
+    MAX(CASE WHEN key = 'sr02_containment_hours' THEN value END) AS containment_limit,
+    MAX(CASE WHEN key = 'sr03_verification_days' THEN value END) AS verification_days
+  FROM rules WHERE well_type = '*'
+),
+base AS (
+  SELECT
+    s.*,
+    s.spill_class IN ('reportable', 'major') AS reporting_required,
+    CASE WHEN s.spill_class = 'major' THEN r.major_notice_hours WHEN s.spill_class = 'reportable' THEN r.notice_hours END AS report_deadline_hours,
+    r.containment_limit,
+    r.verification_days,
+    (SELECT e.event_id FROM regulatory_events e
+     WHERE e.related_inspection_id = s.inspection_id AND e.event_type = 'spill_report_filed'
+     ORDER BY e.date LIMIT 1) AS report_event_id,
+    (SELECT m.maintenance_id FROM maintenance m JOIN reports rp ON rp.maintenance_id = m.maintenance_id
+     WHERE m.triggered_by_inspection_id = s.inspection_id
+     ORDER BY rp.containment_hours IS NULL, m.started_at LIMIT 1) AS repair_id,
+    (SELECT e.event_id FROM regulatory_events e
+     WHERE e.related_inspection_id = s.inspection_id AND e.event_type = 'site_inspection' AND e.protocol_id = 'SR-03'
+     ORDER BY e.status = 'closed' DESC, e.date DESC LIMIT 1) AS sr03_event_id
+  FROM spills s CROSS JOIN r
+)
+SELECT
+  b.inspection_id,
+  b.asset_id,
+  b.well_type,
+  b.area_id,
+  b.area_name,
+  b.inspected_at AS discovered_at,
+  b.inspected_on AS discovered_on,
+  b.spill_effective_volume_bbl,
+  b.spill_class,
+  b.reporting_required,
+  b.report_deadline_hours,
+  CASE WHEN b.reporting_required THEN strftime('%Y-%m-%dT%H:%M:%SZ', b.inspected_at, '+' || b.report_deadline_hours || ' hours') END AS report_due_at,
+  b.report_event_id,
+  f.date AS report_filed_on,
+  f.hours_to_report,
+  CASE
+    WHEN NOT b.reporting_required THEN 'not_required'
+    WHEN f.event_id IS NOT NULL AND f.hours_to_report IS NULL THEN 'unknown'
+    WHEN f.event_id IS NOT NULL AND f.hours_to_report > b.report_deadline_hours THEN 'breached_late'
+    WHEN f.event_id IS NOT NULL THEN 'met'
+    WHEN strftime('%Y-%m-%dT%H:%M:%SZ', b.inspected_at, '+' || b.report_deadline_hours || ' hours') < '${asOf}' THEN 'breached_open'
+    ELSE 'pending'
+  END AS sr01_status,
+  b.repair_id,
+  rp.report_file,
+  rp.containment_hours,
+  b.containment_limit AS containment_limit_hours,
+  CASE
+    WHEN rp.containment_hours IS NULL THEN 'unknown'
+    WHEN rp.containment_hours > b.containment_limit THEN 'breached_late'
+    ELSE 'met'
+  END AS sr02_status,
+  b.reporting_required AS sr03_required,
+  CASE WHEN b.reporting_required THEN date(b.inspected_on, '+' || b.verification_days || ' days') END AS sr03_due_on,
+  b.sr03_event_id,
+  v.status AS sr03_event_status,
+  CASE
+    WHEN NOT b.reporting_required THEN 'not_required'
+    WHEN v.status = 'closed' AND v.date <= date(b.inspected_on, '+' || b.verification_days || ' days') THEN 'met'
+    WHEN v.status = 'closed' THEN 'breached_late'
+    WHEN date(b.inspected_on, '+' || b.verification_days || ' days') < '${asOf}' THEN 'breached_open'
+    ELSE 'pending'
+  END AS sr03_status,
+  rp.stated_class AS report_stated_class,
+  COALESCE(rp.stated_class <> b.spill_class, 0) AS class_mismatch
+FROM base b
+LEFT JOIN regulatory_events f ON f.event_id = b.report_event_id
+LEFT JOIN reports rp ON rp.maintenance_id = b.repair_id
+LEFT JOIN regulatory_events v ON v.event_id = b.sr03_event_id;
 `;
 }
 
@@ -379,6 +549,86 @@ export const VIEW_DOCS: ViewDoc[] = [
     ],
   },
   {
+    name: "rca_candidates",
+    description:
+      "One row per well and equipment kind with corrective repairs in the manual's RCA window (window_months, ending AS_OF). needs_rca = 1 when the count reaches the escalation count, which means a root-cause analysis is due before the next repair is closed. An RCA that is due is an open action, not a breach. Cite the repairs in repair_ids and the rule's document and section.",
+    columns: [
+      col("asset_id", ""),
+      col("well_type", ""),
+      col("area_id", ""),
+      col("area_name", ""),
+      col("equipment_kind", "wellhead, pump_jack, rod_string, downhole_pump, flowline or separator"),
+      col("corrective_repairs", "corrective repairs started in the window"),
+      col("repair_ids", "those repairs' maintenance IDs, oldest first, comma-separated"),
+      col("window_start", "first date of the window, YYYY-MM-DD"),
+      col("window_months", ""),
+      col("rca_threshold", "the effective escalation count"),
+      col("rule_source", "manual: the well-type manual's rule applied"),
+      col("rule_document", "the document that states the rule, e.g. OM-T200"),
+      col("rule_section", "its section"),
+      col("needs_rca", "1 when corrective_repairs >= rca_threshold"),
+    ],
+  },
+  {
+    name: "regulator_events",
+    description:
+      "One row per regulator event: spill_report_filed (SR-01 written notice), notice_of_violation (with its fine), site_inspection (SR-03 verification: closed means it passed) and nov_response_filed (RC-04). A notice of violation must be answered within the RC-04 window; rc04_status tracks it. Status open means the agency has not closed it; open fines are SUM(fine_usd) WHERE status = 'open'.",
+    columns: [
+      col("event_id", "e.g. REG-0001-002"),
+      col("asset_id", ""),
+      col("well_type", ""),
+      col("area_id", ""),
+      col("area_name", ""),
+      col("date", "YYYY-MM-DD"),
+      col("agency", "State Oil & Gas Commission or Regional Environmental Protection Office"),
+      col("event_type", "spill_report_filed | notice_of_violation | site_inspection | nov_response_filed"),
+      col("protocol_id", "the SOP protocol the event is about, e.g. SR-01"),
+      col("related_inspection_id", "the inspection that discovered the spill"),
+      col("hours_to_report", "hours from discovery to the written notice"),
+      col("detail", ""),
+      col("fine_usd", ""),
+      col("status", "open | closed"),
+      col("response_due_on", "notice of violation only: RC-04 response deadline, YYYY-MM-DD"),
+      col("response_event_id", "notice of violation only: the nov_response_filed event, or NULL when none is recorded"),
+      col("rc04_status", "notice of violation only: met | breached_late (answered after the due date) | breached_open (due date passed, no response recorded) | pending"),
+    ],
+  },
+  {
+    name: "spill_compliance",
+    description:
+      "One row per real spill with its Spill Response SOP duties (SR-01 written notice, SR-02 containment, SR-03 agency verification), judged on the effective class. Containment hours come only from the repair report. Statuses: met | breached_late (done after the deadline) | breached_open (deadline before AS_OF and still not done: a breach that is also still open) | pending (deadline not yet passed: an open action, not a breach) | not_required | unknown (no report states it). Every status starting with breached is a breach. Cite the inspection, the regulator events, the repair report and the SOP protocol.",
+    columns: [
+      col("inspection_id", "the inspection that discovered the spill"),
+      col("asset_id", ""),
+      col("well_type", ""),
+      col("area_id", ""),
+      col("area_name", ""),
+      col("discovered_at", "discovery time = inspection time, ISO 8601 UTC"),
+      col("discovered_on", "discovery date, YYYY-MM-DD; filter periods on this"),
+      col("spill_effective_volume_bbl", "volume after corrections, bbl"),
+      col("spill_class", "effective class: minor | moderate | reportable | major"),
+      col("reporting_required", "1 when the effective class is reportable or major (SR-01)"),
+      col("report_deadline_hours", "SR-01 written-notice deadline from discovery (shorter for a major spill); NULL when not required"),
+      col("report_due_at", "when the written notice was due, ISO 8601 UTC"),
+      col("report_event_id", "the spill_report_filed regulator event, or NULL when none is recorded"),
+      col("report_filed_on", "date the written notice was filed"),
+      col("hours_to_report", "hours from discovery to the written notice"),
+      col("sr01_status", "met | breached_late | breached_open | pending | not_required | unknown (filed, hours not recorded)"),
+      col("repair_id", "the repair whose report covers the spill (maintenance_id)"),
+      col("report_file", "that repair's report file"),
+      col("containment_hours", "hours from discovery to containment, from the report; NULL when no report states it"),
+      col("containment_limit_hours", "the SR-02 limit, hours"),
+      col("sr02_status", "met | breached_late | unknown"),
+      col("sr03_required", "1 when agency verification of the cleanup is required (reportable or major)"),
+      col("sr03_due_on", "verification due date (discovery + the SR-03 window), YYYY-MM-DD"),
+      col("sr03_event_id", "the SR-03 site_inspection regulator event, or NULL"),
+      col("sr03_event_status", "open (verification still pending) or closed (passed)"),
+      col("sr03_status", "met (verified in time) | breached_late (verified after the due date) | breached_open | pending | not_required"),
+      col("report_stated_class", "the class the repair report states, or NULL"),
+      col("class_mismatch", "1 when the report's stated class differs from the effective class (e.g. after a volume correction); the report's reporting statements then no longer hold"),
+    ],
+  },
+  {
     name: "repairs",
     description:
       "One row per repair (maintenance job), scheduled or corrective. A repair belongs to a period by started_on. A repair is open while its planned end is after AS_OF.",
@@ -404,7 +654,7 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("cost_parts_usd", ""),
       col("cost_usd", "total cost; sum this for spend"),
       col("triggered_by_inspection_id", "the inspection that led to the job, or NULL"),
-      col("report_file", "path of the repair report, or NULL"),
+      col("report_file", "path of the repair report, or NULL; read it with read_report by maintenance_id"),
     ],
   },
   {

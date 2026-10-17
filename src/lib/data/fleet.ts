@@ -1,5 +1,6 @@
 import { constants, DatabaseSync } from "node:sqlite";
 import { openKnowledgeStore } from "./knowledge";
+import type { ComplianceCheck } from "./reports";
 import { VIEW_DOCS, viewsSql } from "./schema";
 
 export interface WellSnapshot {
@@ -65,6 +66,27 @@ export interface StoredDocument {
   text: string;
 }
 
+export interface RepairReport {
+  maintenanceId: string;
+  assetId: string;
+  reportFile: string;
+  /** Hours from discovery to containment, as the report states it, or null. */
+  containmentHours: number | null;
+  /** The spill class the report states, or null. */
+  statedClass: string | null;
+  /** The report's compliance check, row by row. */
+  checks: ComplianceCheck[];
+  text: string;
+}
+
+export interface ReportSearchHit {
+  maintenanceId: string;
+  assetId: string;
+  reportFile: string;
+  /** The matching passage, with matched words in [brackets]. */
+  snippet: string;
+}
+
 /** A query the model can fix: the message says what was wrong. */
 export class QueryError extends Error {}
 
@@ -95,6 +117,10 @@ export interface Fleet {
   query(sql: string, options?: { maxRows?: number }): QueryResult;
   /** The well's state at its latest inspection ("right now"), or undefined for an unknown well. */
   wellSnapshot(assetId: string): WellSnapshot | undefined;
+  /** A repair's report (resolved through its report_file), or undefined when it has none. */
+  report(maintenanceId: string): RepairReport | undefined;
+  /** Full-text search over every repair report, best match first. */
+  searchReports(text: string, options?: { assetId?: string; limit?: number }): ReportSearchHit[];
   /** Every parsed rule, with the document and section that states it. */
   rules(): StoredRule[];
   /** Full text of every well-type manual and SOP. */
@@ -106,30 +132,56 @@ type Row = Record<string, any>;
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
+/**
+ * The identifiers and keywords of a SQL statement, lower-cased, in order:
+ * string literals and comments are skipped, and quoted identifiers ("x", `x`, [x]) are unquoted.
+ */
+function sqlWords(sql: string): string[] {
+  const words: string[] = [];
+  const token = /'(?:[^']|'')*'?|--[^\n]*|\/\*[\s\S]*?(?:\*\/|$)|"((?:[^"]|"")*)"?|`((?:[^`]|``)*)`?|\[([^\]]*)\]?|([A-Za-z_][A-Za-z0-9_$]*)/g;
+  for (const match of sql.matchAll(token)) {
+    const word = match[1]?.replaceAll('""', '"') ?? match[2]?.replaceAll("``", "`") ?? match[3] ?? match[4];
+    if (word !== undefined) words.push(word.toLowerCase());
+  }
+  return words;
+}
+
 /** Opens the data store read-only; every answer goes through these views. */
 export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions): Fleet {
   openKnowledgeStore(knowledgePath).close(); // the read-only attach below needs the file to exist
   const db = new DatabaseSync(dbPath, { readOnly: true });
   db.exec(`ATTACH DATABASE ${sqlString(`file:${knowledgePath}?mode=ro`)} AS knowledge`);
   db.exec(viewsSql(asOf));
+  // Every base table, in the data store and the knowledge store, plus SQLite's own catalog.
+  const baseTables = new Set(["sqlite_master", "sqlite_schema", "sqlite_temp_master", "sqlite_temp_schema"]);
+  for (const schema of ["main", "knowledge"]) {
+    for (const { name } of db.prepare(`SELECT name FROM ${schema}.sqlite_master WHERE type = 'table'`).all() as Row[]) {
+      baseTables.add(String(name).toLowerCase());
+    }
+  }
 
   return {
     query(sql, { maxRows = DEFAULT_MAX_ROWS } = {}) {
-      let denied: string | undefined;
-      db.setAuthorizer((action, arg1, _arg2, _database, insideView) => {
-        if (action === constants.SQLITE_SELECT || action === constants.SQLITE_FUNCTION || action === constants.SQLITE_RECURSIVE) {
+      // SQLite's authorizer can't tell a read inside a view from one inside the
+      // query's own WITH clause, so a query may not name a base table at all
+      // (an alias after AS is fine).
+      const words = sqlWords(sql);
+      let denied = words.find((word, i) => baseTables.has(word) && !VIEW_NAMES.has(word) && words[i - 1] !== "as");
+      if (denied) denied = `table "${denied}"`;
+      db.setAuthorizer((action) => {
+        if (
+          action === constants.SQLITE_SELECT ||
+          action === constants.SQLITE_READ ||
+          action === constants.SQLITE_FUNCTION ||
+          action === constants.SQLITE_RECURSIVE
+        ) {
           return constants.SQLITE_OK;
         }
-        // Reading is fine inside a view's own definition; a query may only name the views.
-        if (action === constants.SQLITE_READ) {
-          if (insideView || VIEW_NAMES.has(String(arg1))) return constants.SQLITE_OK;
-          denied = `table "${arg1}"`;
-        } else {
-          denied ??= "a statement that is not a plain SELECT";
-        }
+        denied ??= "a statement that is not a plain SELECT";
         return constants.SQLITE_DENY;
       });
       try {
+        if (denied) throw new QueryError(denied);
         const statement = db.prepare(sql);
         // prepare() reads only the first statement; anything after it would be silently dropped.
         if (sql.trim().length > statement.sourceSQL.trim().length) {
@@ -223,6 +275,48 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
           text: n.text,
         })),
       };
+    },
+    report(maintenanceId) {
+      const row = db.prepare("SELECT * FROM reports WHERE maintenance_id = ?").get(maintenanceId) as Row | undefined;
+      if (!row) return undefined;
+      const checks = db
+        .prepare("SELECT protocol, result, detail FROM report_checks WHERE maintenance_id = ? ORDER BY position")
+        .all(maintenanceId) as Row[];
+      return {
+        maintenanceId: row.maintenance_id,
+        assetId: row.asset_id,
+        reportFile: row.report_file,
+        containmentHours: row.containment_hours,
+        statedClass: row.stated_class,
+        checks: checks.map((c) => ({ protocol: c.protocol, result: c.result, detail: c.detail })),
+        text: row.text,
+      };
+    },
+    searchReports(text, { assetId, limit = 10 } = {}) {
+      const search = (match: string) =>
+        db
+          .prepare(
+            `SELECT s.maintenance_id, s.asset_id, r.report_file,
+                    snippet(report_search, 2, '[', ']', ' … ', 24) AS snippet
+             FROM report_search s JOIN reports r ON r.maintenance_id = s.maintenance_id
+             WHERE report_search MATCH ? AND (? IS NULL OR s.asset_id = ?)
+             ORDER BY rank LIMIT ?`,
+          )
+          .all(match, assetId ?? null, assetId ?? null, limit) as Row[];
+      let rows: Row[];
+      try {
+        rows = search(text);
+      } catch {
+        // Not valid FTS5 syntax: search the words as plain terms instead.
+        const terms = text.match(/[\p{L}\p{N}§.-]+/gu) ?? [];
+        rows = terms.length ? search(terms.map((t) => `"${t}"`).join(" ")) : [];
+      }
+      return rows.map((r) => ({
+        maintenanceId: r.maintenance_id,
+        assetId: r.asset_id,
+        reportFile: r.report_file,
+        snippet: r.snippet,
+      }));
     },
     rules() {
       return (db.prepare("SELECT * FROM rules ORDER BY well_type, key").all() as Row[]).map((r) => ({
