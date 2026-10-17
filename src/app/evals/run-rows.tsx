@@ -1,98 +1,89 @@
 "use client";
 
 import { Renderer } from "@openuidev/react-lang";
+import { ThemeProvider, useSystemThemeMode } from "@openuidev/react-ui";
 import { useState } from "react";
 import { seconds, usd } from "@/lib/evals/report";
 import type { StepResult } from "@/lib/evals/runner";
 import { copilotLibrary } from "@/lib/openui/library";
 
-
-/** One row per question step; a row opens to its expected, matched and missed facts and the answer as the chat rendered it. */
+/** Native disclosure rows keep the results readable and keyboard-accessible at any width. */
 export function RunRows({ steps }: { steps: StepResult[] }) {
-  const [open, setOpen] = useState<string>();
+  const mode = useSystemThemeMode();
   return (
-    <table className="w-full text-left text-sm">
-      <thead className="text-xs uppercase opacity-60">
-        <tr>
-          <th className="py-2">Step</th>
-          <th>Question</th>
-          <th>Result</th>
-          <th>Facts</th>
-          <th>Model</th>
-          <th className="text-right">Cost</th>
-          <th className="text-right">Latency</th>
-        </tr>
-      </thead>
-      <tbody>
-        {steps.map((r) => {
-          const expanded = open === r.step.id;
-          return (
-            <StepRow key={r.step.id} r={r} expanded={expanded} toggle={() => setOpen(expanded ? undefined : r.step.id)} />
-          );
-        })}
-      </tbody>
-    </table>
+    <ThemeProvider
+      mode={mode}
+      lightTheme={{ background: "var(--copilot-background)", foreground: "var(--copilot-surface)", textBrand: "var(--copilot-accent)" }}
+    >
+      <div className="evals-steps">
+        {steps.length === 0 && <p className="evals-empty">No step results in this run yet.</p>}
+        {steps.map((r) => <StepRow key={r.step.id} r={r} />)}
+      </div>
+    </ThemeProvider>
   );
 }
 
-function StepRow({ r, expanded, toggle }: { r: StepResult; expanded: boolean; toggle: () => void }) {
+function StepRow({ r }: { r: StepResult }) {
   const { step, grade } = r;
+  const [expanded, setExpanded] = useState(false);
   return (
-    <>
-      <tr className="cursor-pointer border-t border-(--openui-border-default) align-top" onClick={toggle}>
-        <td className="py-2 pr-2 font-mono">
-          {/* The click bubbles to the row, which toggles. */}
-          <button type="button" aria-expanded={expanded} className="underline">
-            {step.id}
-          </button>
-        </td>
-        <td className="pr-2">{step.question}</td>
-        <td className={`pr-2 font-semibold ${grade.pass ? "text-(--openui-text-success-primary)" : "text-(--openui-text-danger-primary)"}`}>
-          {grade.pass ? "pass" : "fail"}
-        </td>
-        <td className="pr-2">
-          {grade.matchedFacts.length}/{step.expectedFacts.length}
-        </td>
-        <td className="pr-2 font-mono text-xs">{r.model}</td>
-        <td className="text-right">{usd(r.costUsd)}</td>
-        <td className="text-right">{seconds(r.latencyMs)}</td>
-      </tr>
+    <details name="eval-steps" className="evals-step" onToggle={(event) => setExpanded(event.currentTarget.open)}>
+      <summary className="evals-step-summary">
+        <span className="evals-step-id">{step.id}</span>
+        <span className="evals-step-question">{step.question}<code>{r.model}</code></span>
+        <span className={`evals-badge ${grade.pass ? "evals-badge--pass" : "evals-badge--fail"}`}>
+          {grade.pass ? "Passed" : "Failed"}
+        </span>
+        <span className="evals-step-metrics">
+          <span><small>Facts</small>{grade.matchedFacts.length}/{step.expectedFacts.length}</span>
+          <span><small>Cost</small>{usd(r.costUsd)}</span>
+          <span><small>Latency</small>{seconds(r.latencyMs)}</span>
+        </span>
+        <svg className="evals-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="m7 4 6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </summary>
       {expanded && (
-        <tr>
-          <td colSpan={7} className="pb-4">
-            <div className="flex flex-col gap-4 rounded-md border border-(--openui-border-default) p-4">
-              <p className="text-xs opacity-70">
-                {step.user} · {step.chat === "new" ? "new chat" : "continued chat"} · expected visual {step.expectedVisual} (matched:{" "}
-                {grade.visualMatches ? "yes" : "no"}) · sources cited: {grade.sourcesCited ? "yes" : "no"}
-              </p>
-              <FactList title="Expected facts" facts={step.expectedFacts} />
-              <FactList title="Missed facts" facts={grade.missedFacts} empty="None missed." />
-              {r.error && <p className="text-sm text-(--openui-text-danger-primary)">Error: {r.error}</p>}
-              {grade.comment && <p className="text-sm">Grader: {grade.comment}</p>}
-              <div>
-                <h3 className="mb-1 text-xs font-semibold uppercase opacity-70">Answer</h3>
-                {r.answer.trim() ? <Renderer response={r.answer} library={copilotLibrary} isStreaming={false} /> : <p className="text-sm opacity-70">(no answer)</p>}
-              </div>
-            </div>
-          </td>
-        </tr>
+        <div className="evals-step-details">
+          <dl className="evals-context">
+            <div><dt>Profile</dt><dd>{step.user}</dd></div>
+            <div><dt>Conversation</dt><dd>{step.chat === "new" ? "New chat" : "Continued chat"}</dd></div>
+            <div><dt>Expected visual</dt><dd>{step.expectedVisual} · {grade.visualMatches ? "matched" : "not matched"}</dd></div>
+            <div><dt>Sources</dt><dd>{grade.sourcesCited ? "Cited" : "Not cited"}</dd></div>
+          </dl>
+          <div className="evals-facts">
+            <FactList title="Expected facts" facts={step.expectedFacts} empty="No expected facts." />
+            <FactList title="Matched facts" facts={grade.matchedFacts} empty="None matched." />
+            <FactList title="Missed facts" facts={grade.missedFacts} empty="None missed." />
+          </div>
+          {r.error && <p role="alert" className="evals-error">Error: {r.error}</p>}
+          {grade.comment && <div className="evals-grader"><h4>Grader notes</h4><p>{grade.comment}</p></div>}
+          <div className="evals-answer">
+            <h4>Copilot answer</h4>
+            {r.answer.trim() ? (
+              <Renderer response={r.answer} library={copilotLibrary} isStreaming={false} />
+            ) : (
+              <p className="evals-muted">No answer was returned for this step.</p>
+            )}
+          </div>
+        </div>
       )}
-    </>
+    </details>
   );
 }
 
-function FactList({ title, facts, empty }: { title: string; facts: string[]; empty?: string }) {
+function FactList({ title, facts, empty }: { title: string; facts: string[]; empty: string }) {
   return (
-    <div>
-      <h3 className="mb-1 text-xs font-semibold uppercase opacity-70">{title}</h3>
+    <div className="evals-fact-list">
+      <h4>{title}</h4>
       {facts.length ? (
-        <ul className="list-disc pl-5 text-sm">
+        <ul>
           {facts.map((f) => (
             <li key={f}>{f}</li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm opacity-70">{empty}</p>
+        <p className="evals-muted">{empty}</p>
       )}
     </div>
   );

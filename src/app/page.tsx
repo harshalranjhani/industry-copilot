@@ -1,7 +1,5 @@
 "use client";
 
-import "@openuidev/react-ui/styles/index.css";
-
 import { fetchLLM, openAIMessageFormat, restStorage } from "@openuidev/react-headless";
 import { AgentInterface, useSystemThemeMode } from "@openuidev/react-ui";
 import Link from "next/link";
@@ -57,11 +55,38 @@ function Chat({ userId, role, modelId }: { userId: string; role: string; modelId
       storage={storage}
       componentLibrary={copilotLibrary}
       components={{ AssistantMessage, ToolCallTimeline: CopilotToolTrace }}
-      agentName="Asset Intelligence Copilot"
-      theme={{ mode }}
-      starterVariant="short"
+      agentName="Asset Intelligence"
+      theme={{
+        mode,
+        lightTheme: {
+          background: "var(--copilot-background)",
+          foreground: "var(--copilot-surface)",
+          invertedBackground: "var(--copilot-accent)",
+          textBrand: "var(--copilot-accent)",
+          borderInteractiveEmphasis: "var(--copilot-accent)",
+          chatUserResponseBg: "var(--copilot-accent-soft)",
+          chatUserResponseText: "var(--openui-text-neutral-primary)",
+        },
+      }}
+      starterVariant="card"
       starters={starterQuestions(role)}
-    />
+    >
+      <AgentInterface.SidebarHeader
+        agentName={<span className="openui-agent-sidebar-header__agent-name">Conversations</span>}
+      />
+      <AgentInterface.SidebarFooter>
+        <p className="copilot-sidebar-note">Your fleet. A clearer picture.</p>
+      </AgentInterface.SidebarFooter>
+      <AgentInterface.MobileHeader
+        agentName={<span className="openui-agent-mobile-header-agent-name">Conversations</span>}
+      />
+      <AgentInterface.Welcome
+        title="Your fleet, in focus."
+        description="Ask about your wells, inspections, and maintenance. Get clear answers with the records to back them up."
+        image={<span className="copilot-eyebrow">Asset intelligence workspace</span>}
+      />
+      <AgentInterface.Composer placeholder="Ask about your fleet…" />
+    </AgentInterface>
   );
 }
 
@@ -78,16 +103,18 @@ function Notice({ loadError, loading }: { loadError?: string; loading: boolean }
   }
   if (loading) {
     return (
-      <div className="copilot-state">
-        <h2>Loading…</h2>
-        <p>Fetching the people and models.</p>
+      <div className="copilot-state" role="status">
+        <span className="copilot-eyebrow">Asset intelligence workspace</span>
+        <h2>Getting your workspace ready</h2>
+        <p>Loading your profiles and available models…</p>
       </div>
     );
   }
   return (
     <div className="copilot-state">
-      <h2>Who are you?</h2>
-      <p>Pick your name in the top bar to start. Your conversations are private to you.</p>
+      <span className="copilot-eyebrow">Welcome to your workspace</span>
+      <h2>A clearer view of your fleet.</h2>
+      <p>Choose your profile above to start exploring wells, inspections, and maintenance with questions in plain English.</p>
     </div>
   );
 }
@@ -129,17 +156,22 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden">
+    <div className="copilot-app flex h-dvh w-full flex-col overflow-hidden">
       <header className="copilot-header">
-        <span className="text-sm font-semibold">Asset Intelligence Copilot</span>
-        <div className="flex items-center gap-4">
-          <Link href="/evals" className="copilot-link">
-            Evals
-          </Link>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-(--openui-text-neutral-secondary)">New chats use</span>
+        <div className="copilot-brand">
+          <svg className="copilot-brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M7 23V14M16 23V9M25 23V5M5 27h22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <div>
+            <h1>Asset Intelligence</h1>
+            <p>Fleet operations copilot</p>
+          </div>
+        </div>
+        <div className="copilot-controls">
+          <label className="copilot-field">
+            <span>Model for new chats</span>
             <select
-              aria-label="Model for new conversations"
+              aria-label="Model for new chats"
               className="copilot-select"
               value={modelId}
               disabled={!catalog}
@@ -147,21 +179,21 @@ export default function Home() {
             >
               {catalog?.models.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} · {m.id}
+                  {m.name}
                 </option>
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-(--openui-text-neutral-secondary)">You are</span>
+          <label className="copilot-field copilot-field--profile">
+            <span>Your profile</span>
             <select
-              aria-label="Who are you?"
+              aria-label="Your profile"
               className="copilot-select"
               value={userId}
               onChange={(e) => pick(e.target.value)}
             >
               <option value="" disabled>
-                Pick who you are…
+                Choose your profile…
               </option>
               {users.map((u) => (
                 <option key={u.userId} value={u.userId}>
@@ -171,8 +203,11 @@ export default function Home() {
             </select>
           </label>
         </div>
+        <Link href="/evals" className="copilot-link">
+          Evaluations <span aria-hidden="true">→</span>
+        </Link>
       </header>
-      <main className="min-h-0 flex-1">
+      <main className="copilot-main min-h-0 flex-1">
         {userId && modelId ? (
           <Chat key={userId} userId={userId} role={users.find((u) => u.userId === userId)?.role ?? ""} modelId={modelId} />
         ) : (

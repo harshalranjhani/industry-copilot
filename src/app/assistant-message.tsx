@@ -70,7 +70,7 @@ export function usageAssistantMessage(headers: Record<string, string>) {
             <Renderer response={message.content} library={copilotLibrary} isStreaming={isStreaming} onAction={onAction} />
           )}
           {usage && message.content && !isStreaming && (
-            <p className="mt-2 text-xs opacity-60" data-testid="answer-usage">
+            <p className="copilot-usage mt-3 text-xs" data-testid="answer-usage">
               {formatUsage(usage)}
             </p>
           )}
