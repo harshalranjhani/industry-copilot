@@ -4,6 +4,7 @@ import "@openuidev/react-ui/styles/index.css";
 
 import { fetchLLM, openAIMessageFormat, restStorage } from "@openuidev/react-headless";
 import { AgentInterface, useSystemThemeMode } from "@openuidev/react-ui";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { USER_HEADER } from "@/lib/conversations/identity";
 import { copilotStreamAdapter } from "@/lib/chat/stream-adapter";
@@ -109,6 +110,9 @@ export default function Home() {
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-black/10 px-4 py-2 dark:border-white/15">
         <span className="text-sm font-semibold">Asset Intelligence Copilot</span>
         <div className="flex items-center gap-4">
+          <Link href="/evals" className="text-sm underline">
+            Evals
+          </Link>
           <label className="flex items-center gap-2 text-sm">
             <span className="opacity-70">New chats use</span>
             <select
