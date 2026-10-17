@@ -66,7 +66,7 @@ function Chat({ userId, role, modelId }: { userId: string; role: string; modelId
 }
 
 /** What shows instead of the chat: a load failure, an empty user list, or the prompt to pick who you are. */
-function Notice({ loadError, users }: { loadError?: string; users: number }) {
+function Notice({ loadError, loading }: { loadError?: string; loading: boolean }) {
   if (loadError) {
     return (
       <div role="alert" className="copilot-state copilot-state--error">
@@ -76,7 +76,7 @@ function Notice({ loadError, users }: { loadError?: string; users: number }) {
       </div>
     );
   }
-  if (users === 0) {
+  if (loading) {
     return (
       <div className="copilot-state">
         <h2>Loading…</h2>
@@ -176,7 +176,7 @@ export default function Home() {
         {userId && modelId ? (
           <Chat key={userId} userId={userId} role={users.find((u) => u.userId === userId)?.role ?? ""} modelId={modelId} />
         ) : (
-          <Notice loadError={loadError} users={users.length} />
+          <Notice loadError={loadError} loading={users.length === 0 || !modelId} />
         )}
       </main>
     </div>
