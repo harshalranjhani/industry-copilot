@@ -1,7 +1,9 @@
+import type { UsageSummary } from "./usage";
 import { type AGUIEvent, EventType, type StreamProtocolAdapter } from "@openuidev/react-headless";
 
 /** One line of the chat route's NDJSON stream: an OpenAI `chat.completion.chunk`. */
 interface ChatChunk {
+  usage?: UsageSummary;
   choices?: Array<{
     delta?: {
       role?: string;
@@ -35,7 +37,7 @@ async function* ndjsonLines(response: Response): AsyncGenerator<string> {
  * `openAIReadableStreamAdapter`, plus tool results (`role: "tool"` deltas) so
  * the tool trace shows each call completing with its output.
  */
-export const copilotStreamAdapter = (): StreamProtocolAdapter => ({
+export const copilotStreamAdapter = (onUsage?: (messageId: string, usage: UsageSummary) => void): StreamProtocolAdapter => ({
   async *parse(response: Response): AsyncIterable<AGUIEvent> {
     const messageId = crypto.randomUUID();
     let started = false;
@@ -47,6 +49,7 @@ export const copilotStreamAdapter = (): StreamProtocolAdapter => ({
       } catch {
         continue;
       }
+      if (chunk.usage) onUsage?.(messageId, chunk.usage);
       const choice = chunk.choices?.[0];
       const delta = choice?.delta;
       if (!delta) continue;

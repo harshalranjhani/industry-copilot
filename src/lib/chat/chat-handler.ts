@@ -4,11 +4,15 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { recallMyConversationsTool } from "@/lib/agent/recall-tool";
 import { type CopilotUser, USER_HEADER } from "@/lib/conversations/identity";
 import { conversationTitle, digestFromAnswer, messageText } from "@/lib/conversations/memory";
-import { ConversationConflict, type ConversationStore, type DigestEntry } from "@/lib/conversations/store";
+import { MODEL_HEADER } from "@/lib/models";
+import { ConversationConflict, type ConversationStore, type DigestEntry, type UsageInput } from "@/lib/conversations/store";
 
 export interface ChatHandlerOptions {
   models: Models;
-  model: Model<Api>;
+  /** Resolves a model ID to a model Pi can call; undefined when the ID is not available. */
+  modelFor: (modelId: string) => Model<Api> | undefined;
+  /** The model a new conversation starts on when the request names none. */
+  defaultModelId: string;
   /** The system prompt for a new conversation: who is talking and what they discussed before. */
   systemPrompt: (context: { user: CopilotUser; memory: DigestEntry[] }) => string;
   /** The domain tools; `recall_my_conversations` is added per user and conversation. */
@@ -50,6 +54,25 @@ function openuiNotice(variant: "info" | "error", title: string, description: str
   return `\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(${JSON.stringify(variant)}, ${JSON.stringify(title)}, ${JSON.stringify(description)})\n`;
 }
 
+/**
+ * What one answer cost, summed over every model call in the turn (a tool loop is
+ * several). Cached prompt tokens count as input; the cost is Pi's, priced from the
+ * model's catalog rates. Undefined when the turn made no model call.
+ */
+function turnUsage(turn: unknown[], firstIndex: number, model: string, latencyMs: number): UsageInput | undefined {
+  type Billed = { role?: string; usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; cost: { total: number } } };
+  const usage = { messageIndex: -1, model, inputTokens: 0, outputTokens: 0, costUsd: 0, latencyMs: Math.round(latencyMs) };
+  turn.forEach((raw, i) => {
+    const m = raw as Billed;
+    if (m.role !== "assistant" || !m.usage) return;
+    usage.messageIndex = firstIndex + i;
+    usage.inputTokens += m.usage.input + m.usage.cacheRead + m.usage.cacheWrite;
+    usage.outputTokens += m.usage.output;
+    usage.costUsd += m.usage.cost.total;
+  });
+  return usage.messageIndex < 0 ? undefined : usage;
+}
+
 function safeArgs(args: unknown): string {
   try {
     return JSON.stringify(args ?? {});
@@ -80,7 +103,8 @@ const STREAM_HEADERS = {
  */
 export function createChatHandler({
   models,
-  model,
+  modelFor,
+  defaultModelId,
   systemPrompt,
   tools,
   conversations,
@@ -91,7 +115,7 @@ export function createChatHandler({
   // One live agent per user and conversation; its state.messages is the server-owned
   // transcript, saved after every answer so a restart (or another session) can resume it.
   const live = new Map<string, Agent>();
-  const agentFor = (user: CopilotUser, conversationId: string, transcript: unknown[]): Agent => {
+  const agentFor = (user: CopilotUser, conversationId: string, model: Model<Api>, transcript: unknown[]): Agent => {
     const key = `${user.userId}:${conversationId}`;
     let agent = live.get(key);
     if (!agent) {
@@ -129,8 +153,18 @@ export function createChatHandler({
 
     // Only this user's conversations are visible: another user's thread ID is simply not found,
     // and cannot be claimed because the ID is taken.
+    // A conversation keeps the model it started on; the header only picks the model of a new one.
     let stored = history.get(conversationId);
-    if (!stored) {
+    let model: Model<Api> | undefined;
+    if (stored) {
+      model = modelFor(stored.model);
+      if (!model) {
+        return Response.json({ error: `This conversation uses ${stored.model}, which is no longer available.` }, { status: 409 });
+      }
+    } else {
+      const requested = req.headers.get(MODEL_HEADER)?.trim() || defaultModelId;
+      model = modelFor(requested);
+      if (!model) return Response.json({ error: `Unknown model ${requested}.` }, { status: 400 });
       live.delete(`${user.userId}:${conversationId}`);
       try {
         history.create({ id: conversationId, title: conversationTitle(userText), model: model.id });
@@ -140,7 +174,7 @@ export function createChatHandler({
         return Response.json({ error: `${user.name} has no conversation ${conversationId}.` }, { status: 404 });
       }
     }
-    const agent = agentFor(user, conversationId, stored?.transcript ?? []);
+    const agent = agentFor(user, conversationId, model, stored?.transcript ?? []);
 
     // An overlapping turn would interleave two streams into one transcript.
     if (agent.state.isStreaming || !userText) {
@@ -208,8 +242,9 @@ export function createChatHandler({
         req.signal.addEventListener("abort", onAbort);
 
         void (async () => {
+          const before = agent.state.messages.length;
+          const startedAt = performance.now();
           try {
-            const before = agent.state.messages.length;
             await agent.prompt(userText);
             if (agent.state.errorMessage) {
               enqueue(chunk({ content: openuiNotice("error", "Model error", agent.state.errorMessage) }));
@@ -226,6 +261,16 @@ export function createChatHandler({
             enqueue(chunk({ content: openuiNotice("error", "Agent error", message) }));
           } finally {
             history.saveTranscript(conversationId, agent.state.messages);
+            // Usage is bookkeeping: losing it must not leave the stream open.
+            try {
+              const usage = turnUsage(agent.state.messages.slice(before), before, model.id, performance.now() - startedAt);
+              if (usage) {
+                history.recordUsage(conversationId, usage);
+                enqueue(`${JSON.stringify({ id: "copilot-chat", object: "chat.completion.chunk", choices: [], usage })}\n`);
+              }
+            } catch (err) {
+              console.error("Could not record answer usage", err);
+            }
             unsubscribe();
             req.signal.removeEventListener("abort", onAbort);
             enqueue(chunk({}, "stop"));

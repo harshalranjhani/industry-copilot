@@ -1,6 +1,7 @@
 import { type CopilotUser, USER_HEADER } from "@/lib/conversations/identity";
 import { conversationTitle, messageText } from "@/lib/conversations/memory";
 import type { Conversation, ConversationStore } from "@/lib/conversations/store";
+import { isAllowedModel, MODEL_HEADER } from "@/lib/models";
 
 export interface ThreadsHandlerOptions {
   conversations: ConversationStore;
@@ -72,7 +73,9 @@ export function createThreadsHandler({ conversations, findUser, modelId }: Threa
       withUser(req, async (history) => {
         const body = (await req.json().catch(() => ({}))) as { messages?: Array<{ content?: unknown }> };
         const first = messageText(body.messages?.[0]).trim();
-        return Response.json(toThread(history.create({ title: conversationTitle(first), model: modelId })));
+        const model = req.headers.get(MODEL_HEADER)?.trim() || modelId;
+        if (!isAllowedModel(model)) return Response.json({ error: `Unknown model ${model}.` }, { status: 400 });
+        return Response.json(toThread(history.create({ title: conversationTitle(first), model })));
       }),
 
     get: (req: Request, id: string) =>
@@ -80,6 +83,18 @@ export function createThreadsHandler({ conversations, findUser, modelId }: Threa
         const conversation = history.get(id);
         return conversation ? Response.json(toShellMessages(conversation.transcript)) : notFound();
       }),
+
+    /** What each answer in the conversation cost, keyed by the shell message ID it belongs to. */
+    usage: (req: Request, id: string) =>
+      withUser(req, (history) =>
+        history.get(id)
+          ? Response.json({
+              usage: Object.fromEntries(
+                history.usage(id).map(({ messageIndex, ...u }) => [`m${messageIndex}`, u]),
+              ),
+            })
+          : notFound(),
+      ),
 
     update: (req: Request, id: string) =>
       withUser(req, async (history) => {

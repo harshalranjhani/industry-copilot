@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { pingTool } from "@/lib/agent/tools";
 import { type ConversationStore, openConversationStore } from "@/lib/conversations/store";
 import { USER_HEADER } from "@/lib/conversations/identity";
+import { MODEL_HEADER } from "@/lib/models";
 import { copilotLibrary } from "@/lib/openui/library";
 import { createChatHandler } from "./chat-handler";
 import { copilotStreamAdapter } from "./stream-adapter";
@@ -58,7 +59,8 @@ function startServer(): ReturnType<typeof createChatHandler> {
   models.setProvider(faux.provider);
   return createChatHandler({
     models,
-    model: faux.getModel(),
+    modelFor: (id) => faux.getModel(id),
+    defaultModelId: "faux-a",
     systemPrompt: ({ user, memory }) =>
       `You are a test copilot talking to ${user.name}.\n${memory.map((m) => `Earlier: ${m.question} -> ${m.summary} [${m.wells.join(", ")}]`).join("\n")}`,
     tools: [pingTool],
@@ -71,7 +73,7 @@ function startServer(): ReturnType<typeof createChatHandler> {
 beforeEach(() => {
   workDir = mkdtempSync(join(tmpdir(), "copilot-chat-"));
   stores = [];
-  faux = fauxProvider({ tokenSize: { min: 1, max: 1 } });
+  faux = fauxProvider({ tokenSize: { min: 1, max: 1 }, models: [{ id: "faux-a" }, { id: "faux-b" }] });
   chat = startServer();
 });
 
@@ -80,10 +82,10 @@ afterEach(() => {
   rmSync(workDir, { recursive: true, force: true });
 });
 
-function post(body: unknown, userId: string = MICHAEL): Request {
+function post(body: unknown, userId: string = MICHAEL, model?: string): Request {
   return new Request("http://localhost/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json", [USER_HEADER]: userId },
+    headers: { "Content-Type": "application/json", [USER_HEADER]: userId, ...(model && { [MODEL_HEADER]: model }) },
     body: JSON.stringify(body),
   });
 }
@@ -331,5 +333,67 @@ sources = Sources([SourceItem("inspection", "INS-0121-0010", "Non-producing insp
     );
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe("model switcher", () => {
+  /** Queues a plain answer that records which model produced it. */
+  function recordModels(count: number): string[] {
+    const used: string[] = [];
+    faux.setResponses(
+      Array.from({ length: count }, () => (_ctx: unknown, _opts: unknown, _state: unknown, model: { id: string }) => {
+        used.push(model.id);
+        return fauxAssistantMessage([fauxText("ok")]);
+      }),
+    );
+    return used;
+  }
+  const ask = (c: typeof chat, threadId: string, model?: string) =>
+    c(post({ threadId, messages: [{ role: "user", content: "hello" }] }, MICHAEL, model)).then(readChunks);
+
+  it("starts a conversation on the model the builder picked, and every later turn keeps it", async () => {
+    const used = recordModels(4);
+
+    await ask(chat, "t1", "faux-b");
+    await ask(chat, "t1", "faux-a"); // the dropdown moved on, the conversation did not
+    await ask(chat, "t1");
+    await ask(startServer(), "t1"); // resumed after a restart
+
+    expect(used).toEqual(["faux-b", "faux-b", "faux-b", "faux-b"]);
+  });
+
+  it("starts a conversation on the default model when none is picked", async () => {
+    const used = recordModels(1);
+
+    await ask(chat, "t1");
+
+    expect(used).toEqual(["faux-a"]);
+  });
+
+  it("rejects a model that is not available, without creating the conversation", async () => {
+    const res = await chat(post({ threadId: "t1", messages: [{ role: "user", content: "hello" }] }, MICHAEL, "nobody/nothing"));
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("nobody/nothing");
+  });
+});
+
+describe("usage tracking", () => {
+  const usageOf = (chunks: Chunk[]) => chunks.map((c) => (c as Chunk & { usage?: Record<string, unknown> }).usage).find(Boolean);
+
+  it("reports the model, tokens, cost and latency of each answer, summed over its model calls", async () => {
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("ping", { message: "hi" }, { id: "c1" })], { stopReason: "toolUse" }),
+      fauxAssistantMessage([fauxText(ANSWER)]),
+    ]);
+
+    const chunks = await readChunks(await chat(post({ threadId: "t1", messages: [{ role: "user", content: "ping hi" }] }, MICHAEL, "faux-b")));
+
+    const usage = usageOf(chunks);
+    expect(usage).toMatchObject({ model: "faux-b" });
+    expect(usage?.inputTokens).toBeGreaterThan(0);
+    expect(usage?.outputTokens).toBeGreaterThan(0);
+    expect(typeof usage?.costUsd).toBe("number");
+    expect(usage?.latencyMs).toBeGreaterThanOrEqual(0);
   });
 });

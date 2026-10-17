@@ -1,15 +1,19 @@
 import "server-only";
 
-const DEFAULT_MODEL_ID = "openai/gpt-6-luna";
+import { modelCatalog } from "@/lib/models";
 
 export interface CopilotConfig {
   openRouterApiKey: string;
   defaultModelId: string;
 }
 
-/** The model a new conversation starts with (DEFAULT_MODEL, else the built-in default). */
+/** The dropdown's models and the one a new conversation starts with (DEFAULT_MODEL, else the built-in default). */
+export function readModelCatalog() {
+  return modelCatalog(process.env.DEFAULT_MODEL);
+}
+
 export function readDefaultModelId(): string {
-  return process.env.DEFAULT_MODEL?.trim() || DEFAULT_MODEL_ID;
+  return readModelCatalog().defaultId;
 }
 
 /** Reads server configuration from the environment (.env in dev). */

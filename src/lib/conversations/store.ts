@@ -31,6 +31,23 @@ export interface DigestEntry extends DigestInput {
   createdAt: string;
 }
 
+/** What one answer cost: summed over every model call that went into it. */
+export interface UsageInput {
+  /** Position of the answer's final assistant message in the transcript. */
+  messageIndex: number;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  /** Wall-clock time from the question to the end of the answer. */
+  latencyMs: number;
+}
+
+export interface AnswerUsage extends UsageInput {
+  conversationId: string;
+  createdAt: string;
+}
+
 export class ConversationConflict extends Error {}
 
 /**
@@ -49,6 +66,9 @@ export interface UserConversations {
   rename(id: string, title: string): Conversation | undefined;
   remove(id: string): boolean;
   recordDigest(conversationId: string, entry: DigestInput): void;
+  recordUsage(conversationId: string, usage: UsageInput): void;
+  /** Usage of every answer in the conversation, oldest first. */
+  usage(conversationId: string): AnswerUsage[];
   /** The user's most recent answers, newest first. */
   recentDigest(options?: { limit?: number; excludeConversationId?: string }): DigestEntry[];
   /** Digest entries matching every word of the text, newest first. */
@@ -83,6 +103,19 @@ CREATE TABLE IF NOT EXISTS digest_entries (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS digest_by_user ON digest_entries (user_id, seq);
+CREATE TABLE IF NOT EXISTS answer_usage (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id TEXT NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  message_index INTEGER NOT NULL,
+  model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL,
+  output_tokens INTEGER NOT NULL,
+  cost_usd REAL NOT NULL,
+  latency_ms INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS usage_by_conversation ON answer_usage (conversation_id, seq);
 `;
 
 type Row = Record<string, any>;
@@ -104,6 +137,17 @@ const toDigest = (row: Row): DigestEntry => ({
   areas: JSON.parse(row.areas),
   recordIds: JSON.parse(row.record_ids),
   summary: row.summary,
+});
+
+const toUsage = (row: Row): AnswerUsage => ({
+  conversationId: row.conversation_id,
+  messageIndex: row.message_index,
+  model: row.model,
+  inputTokens: row.input_tokens,
+  outputTokens: row.output_tokens,
+  costUsd: row.cost_usd,
+  latencyMs: row.latency_ms,
+  createdAt: row.created_at,
 });
 
 /** Opens (creating if needed) the durable conversation file. */
@@ -191,6 +235,30 @@ export function openConversationStore(path: string, options: { now?: () => Date 
             conversationId,
             userId,
           );
+        },
+        recordUsage(conversationId, usage) {
+          // Insert through the owning-user check so usage can never attach to someone else's conversation.
+          db.prepare(
+            `INSERT INTO answer_usage (conversation_id, user_id, message_index, model, input_tokens, output_tokens, cost_usd, latency_ms, created_at)
+             SELECT id, user_id, ?, ?, ?, ?, ?, ?, ? FROM conversations WHERE id = ? AND user_id = ?`,
+          ).run(
+            usage.messageIndex,
+            usage.model,
+            usage.inputTokens,
+            usage.outputTokens,
+            usage.costUsd,
+            Math.round(usage.latencyMs),
+            stamp(),
+            conversationId,
+            userId,
+          );
+        },
+        usage(conversationId) {
+          return (
+            db
+              .prepare("SELECT * FROM answer_usage WHERE conversation_id = ? AND user_id = ? ORDER BY seq")
+              .all(conversationId, userId) as Row[]
+          ).map(toUsage);
         },
         recentDigest({ limit = 15, excludeConversationId } = {}) {
           return excludeConversationId

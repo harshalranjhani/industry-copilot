@@ -4,7 +4,7 @@
 
 **Blocked by:** 08 — Users and private memory
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] The header dropdown lists exactly the allowlisted models, with the configured default preselected
 - [ ] The chosen model is stored on the conversation and used for every turn in it, including resumed ones

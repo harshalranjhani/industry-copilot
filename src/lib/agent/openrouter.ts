@@ -3,6 +3,7 @@ import { createModels } from "@earendil-works/pi-ai";
 import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter";
 import type { ChatHandlerOptions } from "@/lib/chat/chat-handler";
 import { readConfig } from "@/lib/config";
+import { isAllowedModel } from "@/lib/models";
 import { getRuntime } from "@/lib/runtime";
 import { createCopilotTools } from "./tools";
 import { composeSystemPrompt, loadStaticPromptParts } from "./system-prompt";
@@ -14,11 +15,13 @@ export function openRouterChatOptions(): ChatHandlerOptions {
   const promptParts = loadStaticPromptParts();
   const models = createModels();
   models.setProvider(openrouterProvider());
-  const model = models.getModel("openrouter", defaultModelId);
-  if (!model) throw new Error(`Model "${defaultModelId}" is not in Pi's OpenRouter catalog`);
+  // Fail at startup when an allowlisted model is missing from Pi's catalog, not mid-conversation.
+  const modelFor = (modelId: string) => (isAllowedModel(modelId) ? models.getModel("openrouter", modelId) : undefined);
+  if (!modelFor(defaultModelId)) throw new Error(`Model "${defaultModelId}" is not in Pi's OpenRouter catalog`);
   return {
     models,
-    model,
+    modelFor,
+    defaultModelId,
     systemPrompt: ({ user, memory }) => composeSystemPrompt({ ...promptParts, user, memory }),
     tools: createCopilotTools(fleet),
     conversations,
