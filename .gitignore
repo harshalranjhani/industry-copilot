@@ -11,3 +11,6 @@ dist/
 # dataset clones live beside the code; path is configured via DATA_DIRS
 flytbase-ahc-swe-asset-intelligence-dataset/
 test-data/
+
+# local spec + tickets
+.scratch/
