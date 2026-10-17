@@ -4,6 +4,7 @@ Chat copilot for oil-field operators (FlytBase Hacktoberfest 2026 Hack Day). Ask
 
 - Domain language: [GLOSSARY.md](GLOSSARY.md)
 - Decisions: [docs/adr](docs/adr)
+- Submission write-up, final-two-hours runbook and video outline: [docs/WRITEUP.md](docs/WRITEUP.md)
 - Challenge docs: [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md), [DATASET_GUIDE.md](DATASET_GUIDE.md), [EXAMPLE_QUESTIONS.md](EXAMPLE_QUESTIONS.md)
 
 ## Quick start
