@@ -1,6 +1,6 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
-import { type Fleet, QueryError } from "@/lib/data/fleet";
+import { type Fleet, type KnowledgeInput, KnowledgeError, QueryError } from "@/lib/data/fleet";
 
 const PingParams = Type.Object({
   message: Type.Optional(Type.String({ description: "Text to echo back" })),
@@ -27,7 +27,7 @@ function wellSnapshotTool(fleet: Fleet): AgentTool<typeof WellSnapshotParams> {
     name: "well_snapshot",
     label: "Well snapshot",
     description:
-      "A well's state right now, i.e. at its latest inspection: whether it is producing oil (judged from the wellhead-minus-ambient delta against its well type's threshold), who inspected it, when and how, the recorded status and whether it is out of date, well type, area name, location, and the manual rule (document and section) used, repairs still open (openRepairs) and notes valid today (validNotes), which are the recorded reasons for a stop. Cite the inspection ID, the well's metadata, the rule's document section, and any repair or note you rely on.",
+      "A well's state right now, i.e. at its latest inspection: whether it is producing oil (judged from the wellhead-minus-ambient delta against its well type's threshold), who inspected it, when and how, the recorded status and whether it is out of date, well type, area name, location, and the manual rule (document and section) used, repairs still open (openRepairs) and notes valid today (validNotes: includes what users shared and claims, each with its status accepted / unconfirmed / disputed and origin), which are the recorded reasons for a stop. The latest inspection lists its corrections (original and corrected values, who and why) and whether it is disputed; tell the user when a value was corrected by someone. Cite the inspection ID, the well's metadata, the rule's document section, and any repair or note you rely on.",
     parameters: WellSnapshotParams,
     execute: async (_toolCallId, params) => {
       const snapshot = fleet.wellSnapshot(params.asset_id);
@@ -105,7 +105,88 @@ function searchReportsTool(fleet: Fleet): AgentTool<typeof SearchReportsParams> 
   };
 }
 
+const RecordKnowledgeParams = Type.Object({
+  kind: Type.Union([Type.Literal("correction"), Type.Literal("note"), Type.Literal("claim")], {
+    description:
+      "correction: a re-measured or wrong inspection value. note: a fact to share about a well (a planned shut-in, a remark). claim: a statement about whether a well is producing.",
+  }),
+  author: Type.String({ description: "The user who stated it: their full name or user ID, exactly as they gave it" }),
+  asset_id: Type.Optional(Type.String({ description: "Well ID. Required for a note or claim" })),
+  inspection_id: Type.Optional(
+    Type.String({ description: "Inspection ID. Required for a correction; for a note, the inspection it is about" }),
+  ),
+  field: Type.Optional(
+    Type.Union(
+      [
+        Type.Literal("wellhead_temp_c"),
+        Type.Literal("ambient_temp_c"),
+        Type.Literal("spill_detected"),
+        Type.Literal("spill_est_volume_bbl"),
+      ],
+      { description: "Correction only: the inspection field that was wrong" },
+    ),
+  ),
+  value: Type.Optional(
+    Type.Union([Type.Number(), Type.Boolean()], {
+      description: "Correction only: the corrected value (°C, bbl, or false for spill_detected = not a spill)",
+    }),
+  ),
+  reason: Type.Optional(Type.String({ description: "Correction only: why the recorded value was wrong, in the user's words" })),
+  text: Type.Optional(Type.String({ description: "Note or claim: the statement, in the user's words, naming the well" })),
+  asserts_producing: Type.Optional(
+    Type.Boolean({ description: "Claim only: true if it says the well is producing/running, false if shut in/stopped/down" }),
+  ),
+  valid_from: Type.Optional(Type.String({ description: "Note or claim: first date it applies, YYYY-MM-DD" })),
+  valid_to: Type.Optional(Type.String({ description: "Note or claim: last date it applies, YYYY-MM-DD; omit when open-ended" })),
+});
+
+function recordKnowledgeTool(fleet: Fleet): AgentTool<typeof RecordKnowledgeParams> {
+  return {
+    name: "record_knowledge",
+    label: "Record knowledge",
+    description:
+      "Record something the user taught you, for every user from now on: a correction to an inspection value (the original is kept beside it, attributed), a note shared about a well, or a claim about whether a well is producing. Call it in the same turn the user states the fact. The result gives the effect (before and after the derived results, e.g. producing), the conflicts (other evidence that disagrees: the inspector's remark, other people's notes, or for a claim the latest inspection) and, for a claim the data contradicts, status unconfirmed. Tell the user what was recorded, surface every conflict and ask them to confirm. An error says what to fix.",
+    parameters: RecordKnowledgeParams,
+    executionMode: "sequential",
+    execute: async (_toolCallId, params) => {
+      let result: unknown;
+      try {
+        const author = fleet.findUser(params.author);
+        if (!author) throw new KnowledgeError(`No user named or with ID "${params.author}". Ask who is speaking.`);
+        const need = <T,>(value: T | undefined, name: string): T => {
+          if (value === undefined) throw new KnowledgeError(`${name} is required for a ${params.kind}.`);
+          return value;
+        };
+        const input: KnowledgeInput =
+          params.kind === "correction"
+            ? {
+                kind: "correction",
+                authorUserId: author.userId,
+                inspectionId: need(params.inspection_id, "inspection_id"),
+                field: need(params.field, "field"),
+                value: need(params.value, "value"),
+                reason: need(params.reason, "reason"),
+              }
+            : {
+                kind: params.kind,
+                authorUserId: author.userId,
+                assetId: need(params.asset_id, "asset_id"),
+                text: need(params.text, "text"),
+                validFrom: params.valid_from,
+                validTo: params.valid_to,
+                ...(params.kind === "note" ? { inspectionId: params.inspection_id } : { assertsProducing: params.asserts_producing }),
+              };
+        result = { recorded: fleet.recordKnowledge(input), author: author.name };
+      } catch (err) {
+        if (!(err instanceof KnowledgeError)) throw err;
+        result = { error: err.message };
+      }
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }], details: undefined };
+    },
+  };
+}
+
 /** The agent's whole toolset: domain tools only, never shell, file or edit tools. */
 export function createCopilotTools(fleet: Fleet): AgentTool<any>[] {
-  return [wellSnapshotTool(fleet), queryTool(fleet), readReportTool(fleet), searchReportsTool(fleet)];
+  return [wellSnapshotTool(fleet), queryTool(fleet), readReportTool(fleet), searchReportsTool(fleet), recordKnowledgeTool(fleet)];
 }

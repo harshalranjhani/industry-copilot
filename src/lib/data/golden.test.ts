@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SAMPLE_DATA_DIR } from "./config";
 import { type Fleet, openFleet, QueryError } from "./fleet";
 import { VIEW_DOCS } from "./schema";
@@ -511,8 +511,8 @@ describe("notes become knowledge entries", () => {
 
     expect(links).toEqual([
       { note_id: "CTX-0001-001", inspection_id: "INS-0001-0070", kind: "correction", status: "accepted", origin: "dataset" },
-      { note_id: "CTX-0101-002", inspection_id: "INS-0101-0197", kind: "note", status: "accepted", origin: "dataset" },
-      { note_id: "CTX-0101-003", inspection_id: "INS-0101-0197", kind: "note", status: "accepted", origin: "dataset" },
+      { note_id: "CTX-0101-002", inspection_id: "INS-0101-0197", kind: "note", status: "disputed", origin: "dataset" },
+      { note_id: "CTX-0101-003", inspection_id: "INS-0101-0197", kind: "note", status: "disputed", origin: "dataset" },
     ]);
   });
 });
@@ -653,5 +653,363 @@ describe("loading", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("shared knowledge: recorded through the fleet, applied for everyone", () => {
+  let overlayDir: string;
+  let overlay: Fleet;
+  let overlayDb: string;
+  let overlayKnowledge: string;
+
+  beforeEach(() => {
+    overlayDir = mkdtempSync(join(tmpdir(), "copilot-overlay-"));
+    overlayDb = join(overlayDir, "copilot.db");
+    overlayKnowledge = join(overlayDir, "knowledge.db");
+    loadDataset({ roots: [SAMPLE_DATA_DIR], dbPath: overlayDb, knowledgePath: overlayKnowledge });
+    overlay = openFleet(overlayDb, { knowledgePath: overlayKnowledge, asOf: "2026-10-17" });
+  });
+
+  afterEach(() => {
+    overlay.close();
+    rmSync(overlayDir, { recursive: true, force: true });
+  });
+
+  const overlayRows = (sql: string) => overlay.query(sql).rows;
+  const MICHAEL = "U-201";
+
+  describe("naming the author", () => {
+    it("finds a user by ID or by name, ignoring case, and nobody else", () => {
+      expect(overlay.findUser("U-201")).toEqual({ userId: "U-201", name: "Michael Turner", role: "production_supervisor" });
+      expect(overlay.findUser("  michael turner ")?.userId).toBe("U-201");
+      expect(overlay.findUser("Michael")).toBeUndefined();
+    });
+  });
+
+  describe("Q12: Michael Turner corrects WELL-0164's 15 Oct reading to 41.0 °C", () => {
+    const correct = () =>
+      overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0164-0205",
+        field: "wellhead_temp_c",
+        value: 41.0,
+        reason: "The handheld thermal gun was faulty; the field crew re-measured the wellhead.",
+      });
+
+    it("makes WELL-0164 producing and shows that in the effect", () => {
+      const { effect } = correct();
+
+      expect(effect?.before).toMatchObject({ producing: false, deltaC: 4.1 });
+      expect(effect?.after).toMatchObject({ producing: true, deltaC: 21.1 });
+      expect(effect?.changed).toContain("producing");
+    });
+
+    it("flags the inspector's \"Pump jack not moving.\" remark as a conflict for Michael Turner to confirm", () => {
+      const { conflicts } = correct();
+
+      expect(conflicts).toEqual([
+        expect.objectContaining({
+          source: "inspector_remark",
+          id: "INS-0164-0205",
+          text: "Pump jack not moving.",
+          authorName: "Tyler Hughes",
+        }),
+      ]);
+    });
+
+    it("reports no conflict when the correction changes no outcome", () => {
+      const { conflicts } = overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0164-0205",
+        field: "wellhead_temp_c",
+        value: 24.5,
+        reason: "Re-read the gauge.",
+      });
+
+      expect(conflicts).toEqual([]);
+    });
+
+    it("keeps the original 24.0 °C and names who corrected it and why", () => {
+      correct();
+
+      expect(
+        overlayRows("SELECT wellhead_temp_c, wellhead_temp_c_original, corrected_fields, producing FROM effective_inspections WHERE inspection_id = 'INS-0164-0205'"),
+      ).toEqual([{ wellhead_temp_c: 41, wellhead_temp_c_original: 24, corrected_fields: "wellhead_temp_c", producing: 1 }]);
+      expect(
+        overlayRows("SELECT field, original_value, corrected_value, author_name, origin, reason FROM corrections WHERE inspection_id = 'INS-0164-0205'"),
+      ).toEqual([
+        {
+          field: "wellhead_temp_c",
+          original_value: 24,
+          corrected_value: 41,
+          author_name: "Michael Turner",
+          origin: "chat",
+          reason: "The handheld thermal gun was faulty; the field crew re-measured the wellhead.",
+        },
+      ]);
+    });
+
+    it("drops WELL-0164 from Q2's list, leaving 0170, 0172 and 0175", () => {
+      correct();
+
+      const wells = overlayRows(
+        "SELECT asset_id FROM latest_inspections WHERE area_name = 'Northeast Block 8' AND NOT producing ORDER BY asset_id",
+      );
+      expect(wells.map((w) => w.asset_id)).toEqual(["WELL-0170", "WELL-0172", "WELL-0175"]);
+    });
+  });
+
+  describe("corrections to the other fields", () => {
+    it("re-classes a spill from a measured volume and keeps the AI's estimate for reference (WELL-0151)", () => {
+      const recorded = overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0151-0201",
+        field: "spill_est_volume_bbl",
+        value: 5.4,
+        reason: "The field crew measured 5.4 bbl.",
+      });
+
+      expect(recorded.originalValue).toBe(4.5);
+      expect(recorded.effect?.before).toMatchObject({ spillClass: "moderate", effectiveVolumeBbl: 4.5 });
+      expect(recorded.effect?.after).toMatchObject({ spillClass: "reportable", effectiveVolumeBbl: 5.4 });
+      expect(
+        overlayRows("SELECT e.spill_est_volume_bbl, e.spill_effective_volume_bbl, e.spill_class, e.corrected_by_name FROM spills s JOIN effective_inspections e ON e.inspection_id = s.inspection_id WHERE s.inspection_id = 'INS-0151-0201'"),
+      ).toEqual([{ spill_est_volume_bbl: 4.5, spill_effective_volume_bbl: 5.4, spill_class: "reportable", corrected_by_name: "Michael Turner" }]);
+    });
+
+    it("takes a spill out of the statistics when its detection is corrected to false", () => {
+      const before = overlayRows("SELECT COUNT(*) AS n FROM spills WHERE asset_id = 'WELL-0001'")[0]?.n;
+      const recorded = overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0001-0021",
+        field: "spill_detected",
+        value: false,
+        reason: "Washout water, not oil.",
+      });
+
+      expect(recorded.effect?.changed).toContain("isSpill");
+      expect(overlayRows("SELECT COUNT(*) AS n FROM spills WHERE asset_id = 'WELL-0001'")[0]?.n).toBe((before as number) - 1);
+    });
+
+    it("applies a corrected air temperature to the delta", () => {
+      const recorded = overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0164-0205",
+        field: "ambient_temp_c",
+        value: 9.9,
+        reason: "The weather station was reading the wrong sensor.",
+      });
+
+      expect(recorded.effect?.after).toMatchObject({ ambientTempC: 9.9, deltaC: 14.1 });
+      expect(overlayRows("SELECT ambient_temp_c_original FROM effective_inspections WHERE inspection_id = 'INS-0164-0205'")).toEqual([
+        { ambient_temp_c_original: 19.9 },
+      ]);
+    });
+  });
+
+  describe("recording refuses what doesn't check out", () => {
+    const correction = {
+      kind: "correction" as const,
+      authorUserId: MICHAEL,
+      inspectionId: "INS-0164-0205",
+      field: "wellhead_temp_c" as const,
+      value: 41,
+      reason: "Re-measured.",
+    };
+
+    it.each([
+      ["an unknown inspection", { inspectionId: "INS-9999-0001" }, /No inspection with ID INS-9999-0001/],
+      ["an unknown user", { authorUserId: "U-999" }, /No user with ID U-999/],
+      ["a field that can't be corrected", { field: "inspector_user_id" as any }, /wellhead_temp_c, ambient_temp_c, spill_detected, spill_est_volume_bbl/],
+      ["a missing reason", { reason: "  " }, /reason/],
+      ["a value that isn't a number", { value: Number.NaN }, /number/],
+    ])("rejects %s and stores nothing", (_name, change, message) => {
+      expect(() => overlay.recordKnowledge({ ...correction, ...change })).toThrow(message);
+      expect(overlayRows("SELECT COUNT(*) AS n FROM corrections WHERE origin = 'chat'")).toEqual([{ n: 0 }]);
+    });
+
+    it("rejects a volume correction where no spill stands", () => {
+      expect(() =>
+        overlay.recordKnowledge({ ...correction, field: "spill_est_volume_bbl", value: 5 }),
+      ).toThrow(/no spill/i);
+    });
+  });
+
+  describe("Q15: Jessica Reed sees WELL-0164 as producing, attributed to Michael Turner", () => {
+    const correctWellhead = () =>
+      overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0164-0205",
+        field: "wellhead_temp_c",
+        value: 41.0,
+        reason: "The handheld thermal gun was faulty; the field crew re-measured the wellhead.",
+      });
+
+    it("shows the corrected reading, its original and who corrected it, beside the inspector's remark", () => {
+      correctWellhead();
+
+      const latest = overlay.wellSnapshot("WELL-0164")?.latestInspection;
+      expect(latest).toMatchObject({ inspectionId: "INS-0164-0205", wellheadTempC: 41, deltaC: 21.1, producing: true, notes: "Pump jack not moving." });
+      expect(latest?.corrections).toEqual([
+        expect.objectContaining({
+          field: "wellhead_temp_c",
+          originalValue: 24,
+          correctedValue: 41,
+          authorName: "Michael Turner",
+          reason: "The handheld thermal gun was faulty; the field crew re-measured the wellhead.",
+        }),
+      ]);
+      expect(overlay.wellSnapshot("WELL-0164")?.statusMismatch).toBe(false);
+    });
+
+    it("survives a reload of the dataset", () => {
+      correctWellhead();
+      overlay.close();
+
+      loadDataset({ roots: [SAMPLE_DATA_DIR], dbPath: overlayDb, knowledgePath: overlayKnowledge });
+      overlay = openFleet(overlayDb, { knowledgePath: overlayKnowledge, asOf: "2026-10-17" });
+
+      expect(overlay.wellSnapshot("WELL-0164")?.latestInspection).toMatchObject({ producing: true, wellheadTempC: 41 });
+    });
+  });
+
+  describe("Q16: Jake Morales shares a planned shut-in for WELL-0007", () => {
+    it("shows up in WELL-0007's snapshot for everyone, attributed to Jake Morales", () => {
+      const recorded = overlay.recordKnowledge({
+        kind: "note",
+        authorUserId: "U-102",
+        assetId: "WELL-0007",
+        text: "WELL-0007 will be shut in from 17 Oct for a 10-day planned workover.",
+        validFrom: "2026-10-17",
+        validTo: "2026-10-27",
+      });
+
+      expect(recorded).toMatchObject({ status: "accepted", conflicts: [], effect: null });
+      const shared = overlay.wellSnapshot("WELL-0007")?.validNotes.find((n) => n.noteId === recorded.entryId);
+      expect(shared).toMatchObject({
+        kind: "note",
+        authorName: "Jake Morales",
+        origin: "chat",
+        status: "accepted",
+        validFrom: "2026-10-17",
+        validTo: "2026-10-27",
+      });
+      expect(shared?.text).toMatch(/10-day planned workover/);
+    });
+
+    it("leaves a note out once its period has passed, and refuses a well that doesn't exist", () => {
+      const past = overlay.recordKnowledge({
+        kind: "note",
+        authorUserId: "U-102",
+        assetId: "WELL-0007",
+        text: "Shut in for a workover.",
+        validFrom: "2026-09-01",
+        validTo: "2026-09-10",
+      });
+
+      expect(overlay.wellSnapshot("WELL-0007")?.validNotes.map((n) => n.noteId)).not.toContain(past.entryId);
+      expect(() => overlay.recordKnowledge({ kind: "note", authorUserId: "U-102", assetId: "WELL-9999", text: "x" })).toThrow(
+        /No well with ID WELL-9999/,
+      );
+    });
+  });
+
+  describe("Q17: claims the data contradicts", () => {
+    const claim = (authorUserId: string, assetId: string, text: string, assertsProducing: boolean, validFrom?: string) =>
+      overlay.recordKnowledge({ kind: "claim", authorUserId, assetId, text, assertsProducing, validFrom });
+
+    it("keeps a claim the inspection supports as accepted, with nothing to confirm", () => {
+      const recorded = claim("U-201", "WELL-0175", "WELL-0175 has been shut in for planned work since 14 Oct.", false, "2026-10-14");
+
+      expect(recorded).toMatchObject({ status: "accepted", conflicts: [] });
+    });
+
+    it("stores Tyler Hughes's 'running fine' as unconfirmed, cites the 15 Oct inspection, and changes nothing", () => {
+      claim("U-201", "WELL-0175", "WELL-0175 has been shut in for planned work since 14 Oct.", false, "2026-10-14");
+      const recorded = claim("U-204", "WELL-0175", "WELL-0175 is running fine.", true);
+
+      expect(recorded.status).toBe("unconfirmed");
+      expect(recorded.effect).toBeNull();
+      expect(recorded.conflicts).toEqual([
+        expect.objectContaining({ source: "latest_inspection", id: "INS-0175-0204", authorName: "Jessica Reed" }),
+      ]);
+      expect(recorded.conflicts[0]?.text).toMatch(/0\.4/);
+      // Nothing derived moved: WELL-0175 still isn't producing, and both statements stay on record.
+      expect(overlayRows("SELECT producing FROM latest_inspections WHERE asset_id = 'WELL-0175'")).toEqual([{ producing: 0 }]);
+      expect(overlay.wellSnapshot("WELL-0175")?.latestInspection.producing).toBe(false);
+      expect(
+        overlay.wellSnapshot("WELL-0175")?.validNotes.map((n) => [n.authorName, n.kind, n.status]),
+      ).toEqual([
+        ["Michael Turner", "claim", "accepted"],
+        ["Tyler Hughes", "claim", "unconfirmed"],
+      ]);
+    });
+
+    it("records Jake Morales's 'WELL-0001 back online' as unconfirmed against the 15 Oct inspection, leaving the note that expects a return around 20 Oct in view", () => {
+      const recorded = claim("U-102", "WELL-0001", "WELL-0001 is back online since 14 Oct.", true, "2026-10-14");
+
+      expect(recorded.status).toBe("unconfirmed");
+      expect(recorded.conflicts).toEqual([expect.objectContaining({ source: "latest_inspection", id: "INS-0001-0203" })]);
+      const notes = overlay.wellSnapshot("WELL-0001")?.validNotes ?? [];
+      expect(notes.find((n) => n.noteId === "CTX-0001-003")?.text).toMatch(/Expected back online around 20 Oct/);
+      expect(notes.find((n) => n.noteId === recorded.entryId)).toMatchObject({ kind: "claim", status: "unconfirmed" });
+    });
+  });
+
+  describe("Q18: disputed notes are shown, and the detection still stands", () => {
+    it("marks INS-0101-0197 disputed by Ryan Brooks's and Chris Dalton's notes, and still counts it as a spill", () => {
+      expect(overlayRows("SELECT inspection_id, note_ids, authors FROM disputes")).toEqual([
+        { inspection_id: "INS-0101-0197", note_ids: "CTX-0101-002, CTX-0101-003", authors: "Ryan Brooks, Chris Dalton" },
+      ]);
+      expect(overlayRows("SELECT disputed, is_spill FROM effective_inspections WHERE inspection_id = 'INS-0101-0197'")).toEqual([
+        { disputed: 1, is_spill: 1 },
+      ]);
+      expect(overlayRows("SELECT inspection_id FROM spills WHERE inspection_id = 'INS-0101-0197'")).toHaveLength(1);
+      expect(overlayRows("SELECT note_id, status FROM notes WHERE inspection_id = 'INS-0101-0197' ORDER BY note_id")).toEqual([
+        { note_id: "CTX-0101-002", status: "disputed" },
+        { note_id: "CTX-0101-003", status: "disputed" },
+      ]);
+      expect(overlay.wellSnapshot("WELL-0101")?.validNotes.filter((n) => n.status === "disputed").map((n) => n.noteId)).toEqual([
+        "CTX-0101-002",
+        "CTX-0101-003",
+      ]);
+    });
+
+    it("leaves an inspection with a single note undisputed", () => {
+      overlay.recordKnowledge({ kind: "note", authorUserId: "U-101", assetId: "WELL-0001", inspectionId: "INS-0001-0185", text: "Looked like crude to me." });
+
+      expect(overlayRows("SELECT disputed FROM effective_inspections WHERE inspection_id = 'INS-0001-0185'")).toEqual([{ disputed: 0 }]);
+    });
+
+    it("disputes an inspection when a second person's note about it is recorded, and returns the first as a conflict", () => {
+      const first = overlay.recordKnowledge({ kind: "note", authorUserId: "U-101", assetId: "WELL-0001", inspectionId: "INS-0001-0185", text: "Inspection INS-0001-0185: crude oil." });
+      expect(first.conflicts).toEqual([]);
+
+      const second = overlay.recordKnowledge({ kind: "note", authorUserId: "U-103", assetId: "WELL-0001", inspectionId: "INS-0001-0185", text: "Only produced water." });
+
+      expect(second.conflicts).toEqual([expect.objectContaining({ source: "note", id: first.entryId, authorName: "Emily Carter" })]);
+      expect(overlayRows("SELECT disputed, is_spill FROM effective_inspections WHERE inspection_id = 'INS-0001-0185'")).toEqual([{ disputed: 1, is_spill: 1 }]);
+    });
+
+    it("still lets a formal correction take the detection out of the statistics", () => {
+      overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: "U-402",
+        inspectionId: "INS-0101-0197",
+        field: "spill_detected",
+        value: false,
+        reason: "Lab result: produced water.",
+      });
+
+      expect(overlayRows("SELECT disputed, is_spill FROM effective_inspections WHERE inspection_id = 'INS-0101-0197'")).toEqual([
+        { disputed: 1, is_spill: 0 },
+      ]);
+    });
   });
 });

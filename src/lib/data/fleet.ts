@@ -1,5 +1,5 @@
 import { constants, DatabaseSync } from "node:sqlite";
-import { openKnowledgeStore } from "./knowledge";
+import { addChatEntry, openKnowledgeStore } from "./knowledge";
 import type { ComplianceCheck } from "./reports";
 import { VIEW_DOCS, viewsSql } from "./schema";
 
@@ -23,6 +23,19 @@ export interface WellSnapshot {
     deltaC: number;
     producing: boolean;
     notes: string | null;
+    /** True when people's notes about this inspection disagree: show both sides; the detection stands. */
+    disputed: boolean;
+    /** Corrections applied to this inspection, each with the original value beside the new one. */
+    corrections: {
+      correctionId: string;
+      field: string;
+      originalValue: number | null;
+      correctedValue: number;
+      authorName: string | null;
+      reason: string | null;
+      createdAt: string | null;
+      origin: string;
+    }[];
   };
   /** Repairs still in progress at AS_OF: the first place to look for why a well stopped. */
   openRepairs: {
@@ -39,6 +52,10 @@ export interface WellSnapshot {
     noteId: string;
     kind: string;
     noteType: string | null;
+    /** accepted, unconfirmed (a claim the data contradicts) or disputed. */
+    status: string;
+    /** dataset, or chat for what users taught the copilot. */
+    origin: string;
     authorName: string | null;
     createdAt: string | null;
     validFrom: string | null;
@@ -90,6 +107,85 @@ export interface ReportSearchHit {
 /** A query the model can fix: the message says what was wrong. */
 export class QueryError extends Error {}
 
+/** A recording the model can fix: the message says what was wrong with the target or the value. */
+export class KnowledgeError extends Error {}
+
+/** The inspection fields a correction may change. */
+export const CORRECTABLE_FIELDS = ["wellhead_temp_c", "ambient_temp_c", "spill_detected", "spill_est_volume_bbl"] as const;
+export type CorrectableField = (typeof CORRECTABLE_FIELDS)[number];
+
+/** What a user teaches the copilot. Corrections apply at once; see Fleet.recordKnowledge. */
+export type KnowledgeInput =
+  | {
+      kind: "correction";
+      authorUserId: string;
+      inspectionId: string;
+      field: CorrectableField;
+      /** The new value; a boolean for spill_detected. */
+      value: number | boolean;
+      reason: string;
+    }
+  | {
+      kind: "note";
+      authorUserId: string;
+      assetId: string;
+      text: string;
+      /** The inspection the note is about, when it is about one. */
+      inspectionId?: string;
+      /** YYYY-MM-DD; a note is valid from/to these dates, inclusive. */
+      validFrom?: string;
+      validTo?: string;
+    }
+  | {
+      kind: "claim";
+      authorUserId: string;
+      assetId: string;
+      text: string;
+      /** What the claim says about the well's state: true = producing, false = not producing. Leave out when it says nothing about that. */
+      assertsProducing?: boolean;
+      validFrom?: string;
+      validTo?: string;
+    };
+
+/** Evidence on the same target that disagrees with what was just recorded: the model surfaces it and asks the user to confirm. */
+export interface KnowledgeConflict {
+  source: "inspector_remark" | "latest_inspection" | "note" | "claim";
+  /** The inspection (for a remark or the latest inspection) or the entry's ID. */
+  id: string;
+  text: string;
+  authorName: string | null;
+}
+
+/** Derived results of one inspection, before or after an entry. */
+export interface DerivedInspection {
+  wellheadTempC: number;
+  ambientTempC: number;
+  deltaC: number;
+  producing: boolean;
+  isSpill: boolean;
+  spillClass: string | null;
+  effectiveVolumeBbl: number | null;
+}
+
+export interface RecordedKnowledge {
+  entryId: string;
+  kind: KnowledgeInput["kind"];
+  /** accepted, or unconfirmed for a claim the data contradicts. */
+  status: "accepted" | "unconfirmed";
+  /** The value the dataset has for a corrected field, kept beside the new one. */
+  originalValue: number | null;
+  /** Other evidence on the same target that disagrees with the entry. */
+  conflicts: KnowledgeConflict[];
+  /** What the entry changed in the inspection it targets; null when it targets no inspection. */
+  effect: {
+    inspectionId: string;
+    before: DerivedInspection;
+    after: DerivedInspection;
+    /** The derived results that differ, e.g. ["producing", "deltaC"]. */
+    changed: (keyof DerivedInspection)[];
+  } | null;
+}
+
 export interface QueryResult {
   columns: string[];
   rows: Record<string, any>[];
@@ -115,6 +211,15 @@ export interface Fleet {
    * Throws QueryError, with a message the model can act on, for anything else.
    */
   query(sql: string, options?: { maxRows?: number }): QueryResult;
+  /** A user of the fleet by exact ID or full name (case-insensitive), or undefined. */
+  findUser(nameOrId: string): { userId: string; name: string; role: string } | undefined;
+  /**
+   * Records what a user taught the copilot, for every user from now on: checks
+   * the target exists, stores the entry (original value kept) and returns its
+   * effect. Throws KnowledgeError, with a message the model can act on, for a
+   * target or value that doesn't check out.
+   */
+  recordKnowledge(input: KnowledgeInput): RecordedKnowledge;
   /** The well's state at its latest inspection ("right now"), or undefined for an unknown well. */
   wellSnapshot(assetId: string): WellSnapshot | undefined;
   /** A repair's report (resolved through its report_file), or undefined when it has none. */
@@ -159,6 +264,135 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
       baseTables.add(String(name).toLowerCase());
     }
   }
+
+  const userName = (userId: unknown): string | null =>
+    (db.prepare("SELECT name FROM users WHERE user_id = ?").get(userId as string) as Row | undefined)?.name ?? null;
+
+  const derivedInspection = (inspectionId: string): DerivedInspection => {
+    const r = db.prepare("SELECT * FROM effective_inspections WHERE inspection_id = ?").get(inspectionId) as Row;
+    return {
+      wellheadTempC: r.wellhead_temp_c,
+      ambientTempC: r.ambient_temp_c,
+      deltaC: r.delta_c,
+      producing: Boolean(r.producing),
+      isSpill: Boolean(r.is_spill),
+      spillClass: r.spill_class,
+      effectiveVolumeBbl: r.spill_effective_volume_bbl,
+    };
+  };
+
+  /** Notes (and, with `claims`, claims) by other people about an inspection, named in their field or their text. */
+  const othersAbout = (inspectionId: string, authorUserId: string, kinds: ("note" | "claim")[]): KnowledgeConflict[] =>
+    (
+      db
+        .prepare(
+          `SELECT k.entry_id, k.kind, k.text, k.author_user_id FROM knowledge.knowledge_entries k
+           JOIN knowledge.knowledge_inspection_links l ON l.entry_id = k.entry_id
+           WHERE l.inspection_id = ? AND k.kind IN (${kinds.map((k) => `'${k}'`).join(", ")}) AND k.author_user_id IS NOT ?
+           ORDER BY k.created_at`,
+        )
+        .all(inspectionId, authorUserId) as Row[]
+    ).map((n) => ({ source: n.kind, id: n.entry_id, text: n.text, authorName: userName(n.author_user_id) }));
+
+  const checkPeriod = (validFrom?: string, validTo?: string) => {
+    for (const [name, date] of [["valid_from", validFrom], ["valid_to", validTo]] as const) {
+      if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new KnowledgeError(`${name} must be a YYYY-MM-DD date, got "${date}".`);
+    }
+    if (validFrom && validTo && validTo < validFrom) throw new KnowledgeError("valid_to is before valid_from.");
+  };
+
+  const recordCorrection = (input: Extract<KnowledgeInput, { kind: "correction" }>): RecordedKnowledge => {
+    const inspection = db.prepare("SELECT * FROM inspections WHERE inspection_id = ?").get(input.inspectionId) as Row | undefined;
+    if (!inspection) throw new KnowledgeError(`No inspection with ID ${input.inspectionId}`);
+    if (!CORRECTABLE_FIELDS.includes(input.field)) {
+      throw new KnowledgeError(`${input.field} can't be corrected. Correctable fields: ${CORRECTABLE_FIELDS.join(", ")}.`);
+    }
+    if (!input.reason.trim()) throw new KnowledgeError("A correction needs a reason: why is the recorded value wrong?");
+    const value = Number(input.value);
+    if (typeof input.value === "string" || !Number.isFinite(value)) {
+      throw new KnowledgeError(`The corrected value must be a number (or true/false for spill_detected), got ${String(input.value)}.`);
+    }
+    const before = derivedInspection(input.inspectionId);
+    if (input.field === "spill_est_volume_bbl" && !before.isSpill) {
+      throw new KnowledgeError(`${input.inspectionId} has no spill that stands, so there is no volume to correct.`);
+    }
+    const originalValue: number | null = inspection[input.field];
+    const entryId = addChatEntry(knowledgePath, {
+      kind: "correction",
+      scope: "inspection_field",
+      assetId: inspection.asset_id,
+      inspectionId: input.inspectionId,
+      field: input.field,
+      value,
+      originalValue,
+      reason: input.reason,
+      authorUserId: input.authorUserId,
+      status: "accepted",
+    });
+    const after = derivedInspection(input.inspectionId);
+    const changed = (Object.keys(after) as (keyof DerivedInspection)[]).filter((key) => before[key] !== after[key]);
+    // The inspector's remark and other people's notes about this inspection disagree
+    // with a correction that flips its outcome.
+    const conflicts: KnowledgeConflict[] = [];
+    if (changed.some((key) => key === "producing" || key === "isSpill" || key === "spillClass")) {
+      const remark = String(inspection.notes ?? "").trim();
+      if (remark) {
+        conflicts.push({ source: "inspector_remark", id: input.inspectionId, text: remark, authorName: userName(inspection.inspector_user_id) });
+      }
+      conflicts.push(...othersAbout(input.inspectionId, input.authorUserId, ["note", "claim"]));
+    }
+    return { entryId, kind: "correction", status: "accepted", originalValue, conflicts, effect: { inspectionId: input.inspectionId, before, after, changed } };
+  };
+
+  /** Notes and claims: stored as said. A claim the latest inspection contradicts is stored unconfirmed and changes nothing. */
+  const recordStatement = (input: Extract<KnowledgeInput, { kind: "note" | "claim" }>): RecordedKnowledge => {
+    const well = db.prepare("SELECT asset_id FROM wells WHERE asset_id = ?").get(input.assetId);
+    if (!well) throw new KnowledgeError(`No well with ID ${input.assetId}`);
+    if (!input.text.trim()) throw new KnowledgeError("A note or claim needs its text.");
+    checkPeriod(input.validFrom, input.validTo);
+    if (input.kind === "note" && input.inspectionId) {
+      const about = db.prepare("SELECT asset_id FROM inspections WHERE inspection_id = ?").get(input.inspectionId) as Row | undefined;
+      if (!about) throw new KnowledgeError(`No inspection with ID ${input.inspectionId}`);
+      if (about.asset_id !== input.assetId) throw new KnowledgeError(`${input.inspectionId} is an inspection of ${about.asset_id}, not ${input.assetId}.`);
+    }
+
+    const conflicts: KnowledgeConflict[] = [];
+    if (input.kind === "note") {
+      // Other people's notes about the same inspection disagree by definition: that is a dispute.
+      const about = new Set([...(input.text.match(/INS-\d+-\d+/g) ?? []), ...(input.inspectionId ? [input.inspectionId] : [])]);
+      for (const inspectionId of about) {
+        for (const note of othersAbout(inspectionId, input.authorUserId, ["note"])) {
+          if (!conflicts.some((c) => c.id === note.id)) conflicts.push(note);
+        }
+      }
+    }
+    let status: RecordedKnowledge["status"] = "accepted";
+    if (input.kind === "claim" && input.assertsProducing !== undefined) {
+      const latest = db.prepare("SELECT * FROM latest_inspections WHERE asset_id = ?").get(input.assetId) as Row | undefined;
+      if (latest && Boolean(latest.producing) !== input.assertsProducing) {
+        status = "unconfirmed";
+        conflicts.push({
+          source: "latest_inspection",
+          id: latest.inspection_id,
+          text: `Inspected ${latest.inspected_at}: wellhead ${latest.wellhead_temp_c} °C vs air ${latest.ambient_temp_c} °C, ${latest.delta_c} °C above air against a threshold of ${latest.producing_threshold_c} °C, so the well is ${latest.producing ? "producing" : "not producing"}.`,
+          authorName: latest.inspector_name,
+        });
+      }
+    }
+    const entryId = addChatEntry(knowledgePath, {
+      kind: input.kind,
+      scope: "well",
+      assetId: input.assetId,
+      inspectionId: input.kind === "note" ? input.inspectionId : undefined,
+      value: input.kind === "claim" && input.assertsProducing !== undefined ? Number(input.assertsProducing) : undefined,
+      text: input.text,
+      authorUserId: input.authorUserId,
+      validFrom: input.validFrom,
+      validTo: input.validTo,
+      status,
+    });
+    return { entryId, kind: input.kind, status, originalValue: null, conflicts, effect: null };
+  };
 
   return {
     query(sql, { maxRows = DEFAULT_MAX_ROWS } = {}) {
@@ -210,6 +444,17 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
         db.setAuthorizer(null);
       }
     },
+    findUser(nameOrId) {
+      const term = nameOrId.trim().toLowerCase();
+      const row = db.prepare("SELECT user_id, name, role FROM users WHERE lower(user_id) = ? OR lower(name) = ?").get(term, term) as Row | undefined;
+      return row && { userId: row.user_id, name: row.name, role: row.role };
+    },
+    recordKnowledge(input) {
+      if (!db.prepare("SELECT 1 FROM users WHERE user_id = ?").get(input.authorUserId)) {
+        throw new KnowledgeError(`No user with ID ${input.authorUserId}`);
+      }
+      return input.kind === "correction" ? recordCorrection(input) : recordStatement(input);
+    },
     wellSnapshot(assetId) {
       const row = db
         .prepare(
@@ -241,6 +486,19 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
           deltaC: row.delta_c,
           producing: Boolean(row.producing),
           notes: row.notes,
+          disputed: Boolean(row.disputed),
+          corrections: (
+            db.prepare("SELECT * FROM corrections WHERE inspection_id = ? ORDER BY field").all(row.inspection_id) as Row[]
+          ).map((c) => ({
+            correctionId: c.correction_id,
+            field: c.field,
+            originalValue: c.original_value,
+            correctedValue: c.corrected_value,
+            authorName: c.author_name,
+            reason: c.reason,
+            createdAt: c.created_at,
+            origin: c.origin,
+          })),
         },
         producingRule: {
           thresholdC: row.producing_threshold_c,
@@ -267,6 +525,8 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
           noteId: n.note_id,
           kind: n.kind,
           noteType: n.note_type,
+          status: n.status,
+          origin: n.origin,
           authorName: n.author_name,
           createdAt: n.created_at,
           validFrom: n.valid_from,

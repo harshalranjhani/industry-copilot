@@ -111,3 +111,63 @@ export function replaceDatasetKnowledge(path: string, notes: DatasetNote[]): voi
     db.close();
   }
 }
+
+export interface ChatEntry {
+  kind: "note" | "correction" | "claim";
+  scope: "inspection_field" | "well";
+  assetId: string;
+  inspectionId?: string;
+  field?: string;
+  value?: number | null;
+  originalValue?: number | null;
+  text?: string;
+  reason?: string;
+  authorUserId: string;
+  validFrom?: string;
+  validTo?: string;
+  status: "accepted" | "unconfirmed";
+}
+
+/** Stores one entry recorded in chat and returns its ID. Chat entries survive every data reload. */
+export function addChatEntry(path: string, entry: ChatEntry): string {
+  const db = openKnowledgeStore(path);
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    const { next } = db
+      .prepare("SELECT COALESCE(MAX(CAST(substr(entry_id, 4) AS INTEGER)), 0) + 1 AS next FROM knowledge_entries WHERE entry_id LIKE 'KN-%'")
+      .get() as { next: number };
+    const entryId = `KN-${String(next).padStart(4, "0")}`;
+    db.prepare(
+      `INSERT INTO knowledge_entries
+         (entry_id, kind, scope, asset_id, inspection_id, field, value, original_value, text, reason, author_user_id,
+          created_at, valid_from, valid_to, status, origin)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'chat')`,
+    ).run(
+      entryId,
+      entry.kind,
+      entry.scope,
+      entry.assetId,
+      entry.inspectionId ?? null,
+      entry.field ?? null,
+      entry.value ?? null,
+      entry.originalValue ?? null,
+      entry.text ?? null,
+      entry.reason ?? null,
+      entry.authorUserId,
+      new Date().toISOString(),
+      entry.validFrom ?? null,
+      entry.validTo ?? null,
+      entry.status,
+    );
+    const linked = new Set([...(entry.text?.match(INSPECTION_ID) ?? []), ...(entry.inspectionId ? [entry.inspectionId] : [])]);
+    const insertLink = db.prepare("INSERT OR IGNORE INTO knowledge_inspection_links VALUES (?, ?)");
+    for (const inspectionId of linked) insertLink.run(entryId, inspectionId);
+    db.exec("COMMIT");
+    return entryId;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  } finally {
+    db.close();
+  }
+}

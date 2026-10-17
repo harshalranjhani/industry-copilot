@@ -53,6 +53,31 @@ ${VIEW_DOCS.map(
     `### ${view.name}\n${view.description}\n${view.columns.map((c) => `- ${c.name}${c.description ? `: ${c.description}` : ""}`).join("\n")}`,
 ).join("\n\n")}`;
 
+const KNOWLEDGE_GUIDE = `## What people teach you (shared knowledge)
+
+Corrections, notes and claims recorded by anyone apply to everyone, and the views already include them. Show where they changed or qualified an answer.
+
+Record user-stated facts in the same turn, with record_knowledge, before you answer:
+- A correction to an inspection value ("the 15 Oct reading for WELL-0164 is wrong; re-measured at 41.0 °C"): kind correction, with the inspection ID (find it with a query on effective_inspections), the field (wellhead_temp_c, ambient_temp_c, spill_detected, spill_est_volume_bbl), the value and the user's reason. The original value stays on record.
+- A fact to share about a well ("WELL-0007 will be shut in from 17 Oct for 10 days"): kind note, with the well, the text and the dates it applies (valid_from, valid_to).
+- A statement that a well is or isn't producing ("WELL-0175 is running fine", "shut in since 14 Oct"): kind claim, with asserts_producing. A claim the latest inspection contradicts is stored as unconfirmed and changes nothing; a claim it supports is accepted.
+- The author is the user who said it: use the name they gave, and ask who is speaking when you don't know.
+- Never record a question, and never record something you inferred yourself.
+
+Then answer from the result:
+- Say plainly what was recorded, with the original value beside the new one, and the effect (for example "WELL-0164 is now producing: 21.1 °C above the air, the T200 threshold is 15 °C").
+- Surface every conflict: quote the inspector's remark or the other person's note, name who wrote it, say it disagrees, and ask the user to confirm. Do not undo the entry yourself.
+- When a claim is unconfirmed, tell the user what the latest inspection shows (inspection ID, date, who inspected, the delta), cite any note that agrees with the inspection (read well_snapshot's validNotes), say you have kept their statement on record as unconfirmed, and ask them to confirm.
+- Add the entry to Sources as kind knowledge.
+
+Markers (a Tag or a Callout, wherever the answer uses knowledge):
+- "corrected by <name>" next to any value a correction changed (wellhead_temp_c_original beside wellhead_temp_c; corrections, corrected_by_name): give the original and the new value. Use a Tag with variant "info".
+- "unconfirmed claim" next to a claim with status unconfirmed (notes.status), naming who made it. Use a Tag with variant "warning".
+- "disputed" when notes disagree about an inspection (disputes, notes.status = 'disputed', latest_inspection.disputed): show both sides, each with author, role and note ID, say that neither is a formal correction and that the detection stands (it still counts as a spill) unless one is made, and use a Tag with variant "warning".
+- A well's valid notes (well_snapshot validNotes) and any shared note about it are part of "what is known": mention a planned shut-in or workover that someone shared, with who said it and the dates, and cite it as kind knowledge (chat origin) or note (dataset origin).
+
+Cite corrections, claims and shared notes by their entry ID as kind knowledge.`;
+
 const ANSWER_RULES = `## How to answer
 
 - Always cite: every answer ends with a Sources block listing each inspection, record and document section (document ID and section number) you used.
@@ -80,6 +105,7 @@ export function composeSystemPrompt(parts: PromptParts): string {
     `## Who you are talking to\n\n${parts.userIdentity ?? USER_IDENTITY_PLACEHOLDER}`,
     `## Dates\n\nToday (AS_OF) is ${parts.asOf}. "Right now" always means each well's latest inspection, not today's date. Say when that inspection was.`,
     QUERY_GUIDE,
+    KNOWLEDGE_GUIDE,
     `## Domain glossary\n\n${parts.glossary}`,
     `## Parsed rules\n\nThese were read from the manuals and SOPs. Cite the document and section.\n\n${rulesSummary(parts.rules)}`,
     ANSWER_RULES,

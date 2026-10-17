@@ -116,9 +116,50 @@ CREATE TABLE documents (
 export function viewsSql(asOf: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) throw new Error(`AS_OF must be a YYYY-MM-DD date, got "${asOf}"`);
   return `
+-- The corrections in force: per inspection and field, the latest accepted
+-- correction (a chat one wins over a dataset one). The original value is kept
+-- beside the corrected one, with who made it and why.
+CREATE TEMP VIEW corrections AS
+SELECT
+  k.entry_id AS correction_id,
+  k.inspection_id,
+  k.asset_id,
+  k.field,
+  k.original_value,
+  k.value AS corrected_value,
+  k.reason,
+  k.author_user_id,
+  u.name AS author_name,
+  k.created_at,
+  k.origin
+FROM (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY inspection_id, field ORDER BY origin = 'chat' DESC, created_at DESC) AS recency
+  FROM knowledge_entries
+  WHERE kind = 'correction' AND scope = 'inspection_field' AND status = 'accepted'
+) k
+LEFT JOIN users u ON u.user_id = k.author_user_id
+WHERE k.recency = 1;
+
+-- Inspections that two or more people have written (non-correction) notes
+-- about: the notes disagree, and neither is a formal correction. The detection
+-- stands unless a correction removes it.
+CREATE TEMP VIEW disputes AS
+SELECT
+  l.inspection_id,
+  i.asset_id,
+  COUNT(*) AS note_count,
+  group_concat(k.entry_id, ', ' ORDER BY k.created_at, k.entry_id) AS note_ids,
+  group_concat(u.name, ', ' ORDER BY k.created_at, k.entry_id) AS authors
+FROM knowledge_inspection_links l
+JOIN knowledge_entries k ON k.entry_id = l.entry_id AND k.kind = 'note'
+JOIN inspections i ON i.inspection_id = l.inspection_id
+LEFT JOIN users u ON u.user_id = k.author_user_id
+GROUP BY l.inspection_id
+HAVING COUNT(DISTINCT k.author_user_id) >= 2;
+
 -- Per inspection: the delta above ambient and whether the well was producing,
 -- judged with its well type's threshold (never by absolute temperature), plus
--- the knowledge store's corrections: the original detection stays beside the
+-- the knowledge store's corrections: the original reading stays beside the
 -- effective one.
 CREATE TEMP VIEW effective_inspections AS
 SELECT
@@ -132,27 +173,44 @@ SELECT
   i.inspector_user_id,
   u.name AS inspector_name,
   i.method,
-  i.ambient_temp_c,
-  i.wellhead_temp_c,
-  ROUND(i.wellhead_temp_c - i.ambient_temp_c, 1) AS delta_c,
+  i.ambient_eff AS ambient_temp_c,
+  i.ambient_temp_c AS ambient_temp_c_original,
+  i.wellhead_eff AS wellhead_temp_c,
+  i.wellhead_temp_c AS wellhead_temp_c_original,
+  ROUND(i.wellhead_eff - i.ambient_eff, 1) AS delta_c,
   r.value AS producing_threshold_c,
-  ROUND(i.wellhead_temp_c - i.ambient_temp_c, 1) >= r.value AS producing,
+  ROUND(i.wellhead_eff - i.ambient_eff, 1) >= r.value AS producing,
   i.spill_detected AS spill_detected_original,
-  COALESCE(c.corrected_value, i.spill_detected) AS is_spill,
-  c.entry_id AS correction_id,
-  c.author_user_id AS corrected_by_user_id,
+  i.spill_eff AS is_spill,
+  ca.correction_id,
+  ca.author_user_id AS corrected_by_user_id,
+  ca.author_name AS corrected_by_name,
+  ca.fields AS corrected_fields,
+  i.inspection_id IN (SELECT inspection_id FROM disputes) AS disputed,
   i.spill_area_pct,
   i.spill_est_volume_bbl,
-  CASE WHEN COALESCE(c.corrected_value, i.spill_detected) THEN i.spill_est_volume_bbl END AS spill_effective_volume_bbl,
+  CASE WHEN i.spill_eff THEN i.volume_eff END AS spill_effective_volume_bbl,
   CASE
-    WHEN NOT COALESCE(c.corrected_value, i.spill_detected) THEN NULL
-    WHEN i.spill_est_volume_bbl >= b.major_min THEN 'major'
-    WHEN i.spill_est_volume_bbl >= b.reportable_min THEN 'reportable'
-    WHEN i.spill_est_volume_bbl >= b.moderate_min THEN 'moderate'
+    WHEN NOT i.spill_eff THEN NULL
+    WHEN i.volume_eff >= b.major_min THEN 'major'
+    WHEN i.volume_eff >= b.reportable_min THEN 'reportable'
+    WHEN i.volume_eff >= b.moderate_min THEN 'moderate'
     ELSE 'minor'
   END AS spill_class,
   i.notes
-FROM inspections i
+FROM (
+  SELECT
+    n.*,
+    COALESCE(cw.corrected_value, n.wellhead_temp_c) AS wellhead_eff,
+    COALESCE(cm.corrected_value, n.ambient_temp_c) AS ambient_eff,
+    COALESCE(cs.corrected_value, n.spill_detected) AS spill_eff,
+    COALESCE(cv.corrected_value, n.spill_est_volume_bbl) AS volume_eff
+  FROM inspections n
+  LEFT JOIN corrections cw ON cw.inspection_id = n.inspection_id AND cw.field = 'wellhead_temp_c'
+  LEFT JOIN corrections cm ON cm.inspection_id = n.inspection_id AND cm.field = 'ambient_temp_c'
+  LEFT JOIN corrections cs ON cs.inspection_id = n.inspection_id AND cs.field = 'spill_detected'
+  LEFT JOIN corrections cv ON cv.inspection_id = n.inspection_id AND cv.field = 'spill_est_volume_bbl'
+) i
 JOIN wells w ON w.asset_id = i.asset_id
 JOIN rules r ON r.well_type = w.well_type AND r.key = 'producing_threshold_c'
 LEFT JOIN areas a ON a.area_id = w.area_id
@@ -165,11 +223,11 @@ CROSS JOIN (
   FROM rules WHERE well_type = '*'
 ) b
 LEFT JOIN (
-  SELECT entry_id, inspection_id, author_user_id, CAST(value AS INTEGER) AS corrected_value,
-         ROW_NUMBER() OVER (PARTITION BY inspection_id ORDER BY created_at DESC) AS recency
-  FROM knowledge_entries
-  WHERE kind = 'correction' AND scope = 'inspection_field' AND field = 'spill_detected' AND status = 'accepted'
-) c ON c.inspection_id = i.inspection_id AND c.recency = 1;
+  -- The latest correction on the inspection (bare columns come from the MAX row) and every field corrected.
+  SELECT inspection_id, correction_id, author_user_id, author_name, MAX(created_at) AS latest_at,
+         group_concat(field, ', ') AS fields
+  FROM corrections GROUP BY inspection_id
+) ca ON ca.inspection_id = i.inspection_id;
 
 -- "Right now" means each well's latest inspection. The recorded status is
 -- refreshed monthly, so status_mismatch flags when it disagrees.
@@ -244,7 +302,12 @@ SELECT
   a.name AS area_name,
   k.kind,
   k.note_type,
-  k.status,
+  CASE
+    WHEN k.kind = 'note' AND k.entry_id IN (
+      SELECT l.entry_id FROM knowledge_inspection_links l WHERE l.inspection_id IN (SELECT inspection_id FROM disputes)
+    ) THEN 'disputed'
+    ELSE k.status
+  END AS status,
   k.origin,
   k.author_user_id,
   u.name AS author_name,
@@ -457,18 +520,23 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("inspector_user_id", "inspector's user ID"),
       col("inspector_name", "inspector's name"),
       col("method", "drone or manual"),
-      col("ambient_temp_c", "air temperature, °C"),
-      col("wellhead_temp_c", "wellhead temperature, °C"),
-      col("delta_c", "wellhead minus ambient, °C"),
+      col("ambient_temp_c", "air temperature, °C, after corrections"),
+      col("ambient_temp_c_original", "the air temperature as recorded in the dataset"),
+      col("wellhead_temp_c", "wellhead temperature, °C, after corrections"),
+      col("wellhead_temp_c_original", "the wellhead temperature as recorded in the dataset"),
+      col("delta_c", "wellhead minus ambient, °C, after corrections"),
       col("producing_threshold_c", "the well type's producing threshold, °C above ambient"),
       col("producing", "1 when delta_c >= producing_threshold_c, else 0"),
       col("spill_detected_original", "the detection as recorded in the dataset (1/0)"),
       col("is_spill", "1 when a spill still stands after corrections, else 0"),
-      col("correction_id", "the correction note that overrode the detection, or NULL"),
-      col("corrected_by_user_id", "who made that correction, or NULL"),
+      col("correction_id", "the latest correction applied to this inspection (any field), or NULL"),
+      col("corrected_by_user_id", "who made it, or NULL"),
+      col("corrected_by_name", "their name, or NULL"),
+      col("corrected_fields", "every field corrected on this inspection, comma-separated, or NULL; see corrections"),
+      col("disputed", "1 when people's notes about this inspection disagree (see disputes); the detection still stands unless corrected"),
       col("spill_area_pct", "% of pad area, NULL when no detection"),
-      col("spill_est_volume_bbl", "the AI's volume estimate for the detection, bbl"),
-      col("spill_effective_volume_bbl", "volume of the real spill, bbl; NULL when is_spill = 0"),
+      col("spill_est_volume_bbl", "the AI's volume estimate for the detection, bbl (never overwritten)"),
+      col("spill_effective_volume_bbl", "volume of the real spill after a measured correction, bbl; NULL when is_spill = 0"),
       col("spill_class", "minor | moderate | reportable | major (Spill Response SOP bounds); NULL when is_spill = 0"),
       col("notes", "the inspector's remark"),
     ],
@@ -489,7 +557,9 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("inspector_name", ""),
       col("method", ""),
       col("ambient_temp_c", ""),
+      col("ambient_temp_c_original", ""),
       col("wellhead_temp_c", ""),
+      col("wellhead_temp_c_original", ""),
       col("delta_c", ""),
       col("producing_threshold_c", ""),
       col("producing", ""),
@@ -497,6 +567,9 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("is_spill", ""),
       col("correction_id", ""),
       col("corrected_by_user_id", ""),
+      col("corrected_by_name", ""),
+      col("corrected_fields", ""),
+      col("disputed", ""),
       col("spill_area_pct", ""),
       col("spill_est_volume_bbl", ""),
       col("spill_effective_volume_bbl", ""),
@@ -505,6 +578,36 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("well_name", "display name"),
       col("recorded_status", "active or down in the system of record, refreshed monthly; can be out of date"),
       col("status_mismatch", "1 when the recorded status disagrees with the latest inspection"),
+    ],
+  },
+  {
+    name: "corrections",
+    description:
+      "The corrections in force: one row per corrected inspection field, with the original value beside the corrected one, who made it and why. A correction applies to everyone, so say \"corrected by <name>\" wherever one changed an answer. Fields: wellhead_temp_c, ambient_temp_c, spill_detected, spill_est_volume_bbl.",
+    columns: [
+      col("correction_id", "the knowledge entry's ID"),
+      col("inspection_id", "the inspection corrected"),
+      col("asset_id", "well ID"),
+      col("field", "wellhead_temp_c | ambient_temp_c | spill_detected | spill_est_volume_bbl"),
+      col("original_value", "the value in the dataset (for spill_detected: 1)"),
+      col("corrected_value", "the value now used (for spill_detected: 0 means not a spill)"),
+      col("reason", "why it was corrected, or NULL for a dataset note"),
+      col("author_user_id", ""),
+      col("author_name", "who made the correction"),
+      col("created_at", ""),
+      col("origin", "dataset or chat"),
+    ],
+  },
+  {
+    name: "disputes",
+    description:
+      "Inspections that people's notes disagree about (two or more authors, none of them a formal correction). Show both sides from notes (status = 'disputed') and say neither is a correction: the detection stands, the inspection still counts as a spill unless a correction removed it.",
+    columns: [
+      col("inspection_id", "the disputed inspection"),
+      col("asset_id", "well ID"),
+      col("note_count", "how many notes are about it"),
+      col("note_ids", "their IDs, oldest first, comma-separated"),
+      col("authors", "their authors' names, in the same order"),
     ],
   },
   {
@@ -667,7 +770,7 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("area_name", ""),
       col("kind", "note | correction | claim"),
       col("note_type", "operator_feedback, operator_note or correction (the dataset's label)"),
-      col("status", "accepted | unconfirmed | disputed"),
+      col("status", "accepted | unconfirmed (a claim the data contradicts) | disputed (the note is one side of a dispute about an inspection)"),
       col("origin", "dataset or chat"),
       col("author_user_id", ""),
       col("author_name", ""),
