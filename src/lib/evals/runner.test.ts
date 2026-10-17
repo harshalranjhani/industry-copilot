@@ -281,4 +281,14 @@ describe("runEvals", () => {
     expect(result.steps[1]?.grade.pass).toBe(true);
     expect(result).toMatchObject({ passed: 1, total: 2 });
   });
+
+  it("grades an answer that uses an error callout itself, such as a breached SOP duty", async () => {
+    const answer = 'root = Stack([c, s])\nc = Callout("error", "SR-01 breached", "No written notice was filed within 24 hours.")\ns = Sources([SourceItem("document", "SOP-SR §4", "SR-01")])';
+    faux.setResponses([fauxAssistantMessage([fauxText(answer)]), fauxAssistantMessage([fauxText(verdict([1, 2]))])]);
+
+    const result = await run(scenarios(step({ id: "Q1" })));
+
+    expect(result.steps[0]?.error).toBeUndefined();
+    expect(result.steps[0]?.grade.pass).toBe(true);
+  });
 });

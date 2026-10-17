@@ -2,9 +2,10 @@
 
 import { type AssistantMessage, useThread, useThreadList } from "@openuidev/react-headless";
 import { BuiltinActionType, type ActionEvent, Renderer } from "@openuidev/react-lang";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { formatUsage, liveUsage, type UsageSummary } from "@/lib/chat/usage";
-import { copilotLibrary } from "@/lib/openui/library";
+import { copilotLibrary } from "@/lib/openui/app-library";
+import { AnswerActions } from "./answer-actions";
 
 type SavedUsage = Record<string, UsageSummary>;
 const FRESH_MS = 3000;
@@ -39,18 +40,35 @@ function useSavedUsage(threadId: string | null, headers: Record<string, string>)
   return saved?.threadId === threadId ? saved.usage : undefined;
 }
 
+const textOf = (content: unknown): string =>
+  typeof content === "string"
+    ? content
+    : Array.isArray(content)
+      ? content.map((part) => (part && typeof part === "object" && "text" in part ? String(part.text) : "")).join("")
+      : "";
+
 /**
- * Renders an OpenUI answer like the shell's default, with a small footer naming the
- * model, tokens, cost and latency of that answer. Answers streamed just now carry
- * their usage from the stream; reloaded ones get it from the saved thread.
+ * Renders an OpenUI answer like the shell's default, with a footer naming the
+ * model, tokens, cost and latency of that answer and its download actions.
+ * Answers streamed just now carry their usage from the stream; reloaded ones get
+ * it from the saved thread. `askedBy` names the user for downloaded PDFs.
  */
-export function usageAssistantMessage(headers: Record<string, string>) {
+export function usageAssistantMessage(headers: Record<string, string>, askedBy: string) {
   return function AssistantMessageWithUsage({ message, isStreaming }: { message: AssistantMessage; isStreaming: boolean }) {
     const processMessage = useThread((s) => s.processMessage);
     const threadId = useThreadList((s) => s.selectedThreadId);
     const streamed = useSyncExternalStore(liveUsage.subscribe, () => liveUsage.get(message.id));
     const saved = useSavedUsage(isStreaming || streamed ? null : threadId, headers);
     const usage = streamed ?? saved?.[message.id];
+    const answerRef = useRef<HTMLDivElement>(null);
+    const messages = useThread((s) => s.messages);
+    // The question this answer replies to: the closest user message before it.
+    const question = useMemo(() => {
+      const index = messages.findIndex((m) => m.id === message.id);
+      const before = index < 0 ? [] : messages.slice(0, index);
+      const asked = before.findLast((m) => m.role === "user");
+      return asked ? textOf(asked.content).trim() || undefined : undefined;
+    }, [messages, message.id]);
 
     const onAction = useCallback(
       (event: ActionEvent) => {
@@ -67,12 +85,27 @@ export function usageAssistantMessage(headers: Record<string, string>) {
       <div className="openui-agent-thread-message-assistant">
         <div className="openui-agent-thread-message-assistant__content">
           {message.content && (
-            <Renderer response={message.content} library={copilotLibrary} isStreaming={isStreaming} onAction={onAction} />
+            <div ref={answerRef} className="copilot-answer">
+              <Renderer response={message.content} library={copilotLibrary} isStreaming={isStreaming} onAction={onAction} />
+            </div>
           )}
-          {usage && message.content && !isStreaming && (
-            <p className="copilot-usage mt-3 text-xs" data-testid="answer-usage">
-              {formatUsage(usage)}
-            </p>
+          {message.content && !isStreaming && (
+            <div className="copilot-answer-footer">
+              {usage && (
+                <p className="copilot-usage text-xs" data-testid="answer-usage">
+                  {formatUsage(usage)}
+                </p>
+              )}
+              <AnswerActions
+                content={message.content}
+                question={question}
+                answerRef={answerRef}
+                meta={[
+                  `Asked by ${askedBy} · ${new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}`,
+                  ...(usage ? [formatUsage(usage)] : []),
+                ]}
+              />
+            </div>
           )}
         </div>
       </div>

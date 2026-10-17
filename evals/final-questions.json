@@ -1,0 +1,298 @@
+{
+  "name": "Final questions (test data): all 11 questions, in order",
+  "steps": [
+    {
+      "id": "F1",
+      "user": "Michael Turner",
+      "chat": "new",
+      "question": "All our wells feed one reservoir. Map the reservoir pressure across the field from the pressure data.",
+      "expectedFacts": [
+        "The answer says the data holds no reservoir pressure measurements: no inspection, repair, well-metadata or note record has a reservoir (or bottom-hole) pressure field; weekly inspections record only air and wellhead temperature and spill readings",
+        "The answer does not draw a reservoir pressure map and does not estimate or interpolate reservoir pressure from other data (not from wellhead temperatures, flowline test pressures or well locations)",
+        "The answer explains that the only pressure figures in the data are surface-equipment numbers, not reservoir pressure: flowline pressure tests in repair reports (WS-05: 1.25 x the flowline's maximum operating pressure, held 4 hours) and/or the wellhead pressure ratings in the well-type manuals (T200 3,000 psi, T350 5,000 psi)",
+        "The answer does not confirm that all wells feed one reservoir: the data records no reservoir or formation for any well (the T350 manual even says T350 fluid comes from a deeper, hotter zone)",
+        "The answer offers something the data can actually show instead, clearly labelled as not reservoir pressure (for example the 600 well locations across the 7 areas from the well metadata, or each well's current producing status or wellhead-above-air temperature), or says what pressure survey data would be needed"
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F2",
+      "user": "Robert Hayes",
+      "chat": "new",
+      "question": "Which well produced the most oil in 2026?",
+      "expectedFacts": [
+        "The answer says the data has no oil production volumes or rates for any well (no barrels or rates produced in any record), so it cannot say which well produced the most oil in 2026",
+        "The answer does not name any single well as the top oil producer and does not estimate volumes from wellhead temperature, well type or spill volumes (spill_est_volume_bbl is spilled crude, not production)",
+        "The answer explains what the data does record: whether a well was producing oil at each weekly inspection, from the wellhead-minus-air temperature against its well type's threshold (T200 15 \u00b0C, T350 20 \u00b0C, T500 25 \u00b0C)",
+        "Offering producing time (uptime) as the closest measure, the answer says 166 of the 600 wells were producing oil at every one of their 2026 inspections (zero downtime in 2026), so even uptime does not single out one well"
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F3",
+      "user": "Laura Simmons",
+      "chat": "new",
+      "question": "Since 1 Nov 2026, every time an operator note reports gas at a well, did we get someone out to that well in time under our operating procedures? List every report and whether the response met the deadline.",
+      "expectedFacts": [
+        "The answer applies OPS-1 of the Operations SOP (revision 2): a response is a maintenance job started on that well or a manual inspection of it (drone inspections do not count), starting after the note; the limit is 24 hours for reports before 1 Jan 2027 and 12 hours for reports from 1 Jan 2027",
+        "There are 26 gas reports in operator notes since 1 Nov 2026 (from CTX-0163-002 on 3 Nov 2026 to CTX-0137-004 on 10 Jan 2027): 17 met the deadline and 9 missed it",
+        "WELL-0163 (Northeast Block 8), CTX-0163-002 at 3 Nov 2026 20:55: first response MNT-0163-019 on 14 Nov 2026 08:00, about 251 hours, against 24 hours: Missed",
+        "WELL-0341 (Northwest Block 12), CTX-0341-002 at 19 Nov 2026 07:40: first response manual inspection INS-0341-0109 on 17 Dec 2026 13:30, about 678 hours, against 24 hours: Missed (the drone inspection INS-0341-0105 at 10:45 that day does not count)",
+        "WELL-0332 (Northwest Block 12), CTX-0332-004 at 3 Dec 2026 12:10: no response at all (only drone inspections since, starting with INS-0332-0212 at 14:45 that day): Missed",
+        "WELL-0401 (Northwest Block 12), CTX-0401-002 at 5 Dec 2026 13:50: first response MNT-0401-033 on 11 Dec 2026 08:00, about 138 hours, against 24 hours: Missed",
+        "WELL-0052 (Southwest Block 24), CTX-0052-003 at 18 Dec 2026 06:45: no response at all (no repair or manual inspection since): Missed",
+        "WELL-0362 (Northwest Block 12), CTX-0362-002 at 24 Dec 2026 00:15: first response MNT-0362-030 on 25 Dec 2026 08:00, about 31.8 hours, against 24 hours: Missed (the drone inspection INS-0362-0211 at 07:45 on 24 Dec does not count)",
+        "WELL-0161 (Northeast Block 8), CTX-0161-006 at 25 Dec 2026 15:45: first response manual inspection INS-0161-0168 on 14 Jan 2027 11:00, about 475 hours, against 24 hours: Missed",
+        "WELL-0599 (Southeast Block 32), CTX-0599-003 at 6 Jan 2027 17:20: first response manual inspection INS-0599-0196 on 7 Jan 2027 09:45, about 16.4 hours, against the 12-hour limit for 2027 reports: Missed",
+        "WELL-0516 (Southeast Block 32), CTX-0516-002 at 6 Jan 2027 21:15: first response manual inspection INS-0516-0215 on 7 Jan 2027 12:15, 15.0 hours, against the 12-hour limit for 2027 reports: Missed"
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F4",
+      "user": "Chris Dalton",
+      "chat": "new",
+      "question": "Across all areas, which temporary flowline bypasses are in place right now, and is each one allowed? Also list any bypass, past or present, that stayed in after its approval ran out or was never approved at all.",
+      "expectedFacts": [
+        "The answer applies OPS-2 and the MOC memos: MOC-2026-031 covers WELL-0013, WELL-0062, WELL-0118, WELL-0248 and WELL-0476 and expired 30 Nov 2026, but MOC-2026-044 extends it to 28 Feb 2027; MOC-2026-036 covers WELL-0087, WELL-0158, WELL-0249, WELL-0284, WELL-0356, WELL-0388 and WELL-0461 and expires 15 Dec 2026, not extended",
+        "Three bypasses are in place right now (15 Jan 2027): WELL-0248, WELL-0249 and WELL-0405",
+        "WELL-0248 (Southeast Block 31): bypass in 5 Nov 2026 (CTX-0248-002), still in, approved under MOC-2026-031 as extended by MOC-2026-044, valid until 28 Feb 2027: Allowed",
+        "WELL-0249 (Southeast Block 31): bypass in 25 Nov 2026 (CTX-0249-002), still in, MOC-2026-036 expired 15 Dec 2026: Expired (still in place after its approval ran out)",
+        "WELL-0405 (Northwest Block 12): bypass in 20 Dec 2026 (CTX-0405-003), still in, not named in any MOC: Not approved",
+        "WELL-0158 (Northeast Block 8): bypass in 20 Nov 2026, out 28 Dec 2026 (CTX-0158-005), MOC-2026-036 valid until 15 Dec 2026: Expired (stayed in after the approval ran out)",
+        "WELL-0087 (Southwest Block 24): bypass in 2 Dec 2026, out 6 Jan 2027 (CTX-0087-004), MOC-2026-036 valid until 15 Dec 2026: Expired (stayed in after the approval ran out)",
+        "WELL-0561 (Southeast Block 32): bypass in 8 Dec 2026, out 19 Dec 2026 (CTX-0561-005), not named in any MOC: Not approved",
+        "WELL-0013 (Southwest Block 23): bypass in 10 Nov 2026, out 8 Jan 2027 is Allowed, not expired, because MOC-2026-044 extended MOC-2026-031 past its original 30 Nov 2026 expiry to 28 Feb 2027",
+        "The other past bypasses were removed while still approved and are not violations: WELL-0476 (22 Oct to 18 Nov 2026) and WELL-0062 (2 Nov to 27 Nov 2026) under MOC-2026-031; WELL-0284 (12 Nov to 10 Dec 2026), WELL-0461 (14 Nov to 12 Dec 2026) and WELL-0356 (18 Nov to 5 Dec 2026) under MOC-2026-036"
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F5",
+      "user": "Michael Turner",
+      "chat": "new",
+      "question": "The State Oil & Gas Commission wrote to us in November 2026 about spills. Which of our spills does the letter cover, and on which ones are we not compliant? Show me a table.",
+      "expectedFacts": [
+        "Applies the 20 Nov 2026 regulator letter to all reportable crude-oil spills of at least 5 bbl in Northeast Block 7 or Northeast Block 8 since 1 Jun 2026, with lab results due 15 Jan 2027; does not restrict scope to spills after the letter.",
+        "Applies the 22 Nov HSE note: compliant only if the clean-up report contains \"Soil samples sent to the lab.\" On-site field soil readings alone do not count.",
+        "Excludes spills subsequently confirmed not to be crude oil, using the supporting correction or note.",
+        "Shows well, area, inspection ID and date, volume, clean-up job, and Yes/No compliance with an evidence-based reason and supporting records."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F6",
+      "user": "Nathan Pierce",
+      "chat": "new",
+      "question": "Across the whole field, not just my area, for which wells do the latest inspection and the operator notes disagree about whether the well is producing oil? For each one, what is its real status right now, and why?",
+      "expectedFacts": [
+        "Searches the whole field and compares latest inspection evidence with the latest status-changing operator note, by timestamp.",
+        "Applies OPS-3: newer shut-in notes override older producing inspections; newer restart notes imply producing unconfirmed until confirmed by inspection; newer inspections supersede older status notes.",
+        "Applies data corrections before interpreting readings: INS-0201-0218 wellhead temperature is 10.4 C instead of 32.1 C; INS-0213-0221 is 30.6 C instead of 10.7 C.",
+        "Uses the appropriate well-type temperature-above-ambient threshold; general equipment, gas and bypass remarks do not themselves change production status.",
+        "Shows a table with well, area, inspection ID/date and evidence, operator note date/time and evidence, and justified current status with unconfirmed restarts marked."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F7.1",
+      "user": "Robert Hayes",
+      "chat": "new",
+      "question": "Over the last month the operators have written notes about wells that sound or behave wrong. Which of those wells haven't had a repair since? Rank the 10 most likely to need a repair in the next 90 days, other than a spill clean-up, and quote the notes as evidence.",
+      "expectedFacts": [
+        "Uses abnormal sound or behaviour operator notes from the last month ending 15 Jan 2027, quotes their dates and exact text, and excludes wells repaired after the warning note.",
+        "Ranks ten candidates for a repair other than spill clean-up in the next 90 days, explaining the ranking as judgement without inventing measured failure probabilities.",
+        "Shows rank, well, area, dated quoted note evidence, other warning signs, and last repair, with supporting sources."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F7.2",
+      "user": "Robert Hayes",
+      "chat": "continue",
+      "question": "Which three would you send a crew to first this week, and why?",
+      "expectedFacts": [
+        "Selects three wells from the previous shortlist, preserving the conversation context.",
+        "Justifies crew priority this week with the notes, safety implications, operating condition and repair history, distinguishing judgement from observed facts."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F8.1",
+      "user": "Nathan Pierce",
+      "chat": "new",
+      "question": "WELL-0333's recalled pump was swapped out yesterday. The work order isn't in the system yet. Please count it as replaced from now on.",
+      "expectedFacts": [
+        "Records the claim attributed to Nathan Pierce (told on 15 Jan 2027) that WELL-0333's recalled pump was swapped on 14 Jan 2027, and marks it as unconfirmed: no work order for it is in the maintenance records yet.",
+        "The maintenance records still show the recalled pump in WELL-0333: repair MNT-0333-024 (9-26 May 2026) installed Highline RP-175 serial SN-507591 from lot LOT-2409-A, a lot named in recall notice HPC-RN-2026-07 (1 Dec 2026).",
+        "There is no downhole pump job on WELL-0333 after MNT-0333-024; the only job dated 14-15 Jan 2027 is MNT-0333-028 (15 Jan 2027), a scheduled pump-jack lubrication and belt inspection, not a pump swap.",
+        "Agrees to count WELL-0333 as replaced on Nathan Pierce's word while showing it as his unconfirmed report (not a record) until the work order arrives, and asks for the work order / job details.",
+        "Says where each fact came from: the swap from Nathan Pierce's statement; the installed lot from the MNT-0333-024 repair report's Parts installed line; the recall from the supplier recall notice."
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F8.2",
+      "user": "Nathan Pierce",
+      "chat": "continue",
+      "question": "Also, just for me: whenever you list wells, sort them by area and then by well ID, and show costs in thousands of dollars.",
+      "expectedFacts": [
+        "Saves a display preference for Nathan Pierce: when listing wells, sort by area and then by well ID.",
+        "Saves that costs are shown in thousands of dollars (for example $24.5k) for Nathan Pierce.",
+        "States the preference is private to Nathan Pierce and will not be applied to other users' answers."
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F8.3",
+      "user": "Robert Hayes",
+      "chat": "new",
+      "question": "Which recalled pumps are still in the ground right now?",
+      "expectedFacts": [
+        "By the maintenance records, 9 wells still have a recalled pump (Highline RP-175 from lot LOT-2409-A, LOT-2409-C or LOT-2410-B, per the reports' Parts installed lines): WELL-0031, WELL-0156, WELL-0160, WELL-0263, WELL-0305, WELL-0333, WELL-0426, WELL-0428 and WELL-0577.",
+        "By area: Southwest Block 23 (WELL-0031, WELL-0263), Northeast Block 8 (WELL-0156, WELL-0160), Northwest Block 12 (WELL-0305, WELL-0333, WELL-0426, WELL-0428), Southeast Block 32 (WELL-0577).",
+        "WELL-0333 is flagged: Nathan Pierce reported its recalled pump was swapped on 14 Jan 2027, but no work order is in the maintenance system, so it is shown as an unconfirmed claim attributed to Nathan Pierce, not as a recorded replacement (records alone give 9; 8 if his claim is accepted).",
+        "18 wells received recalled-lot pumps; the other 9 (WELL-0302, WELL-0340, WELL-0345, WELL-0398, WELL-0427, WELL-0460, WELL-0475, WELL-0517, WELL-0595) had them replaced in 'Recalled downhole pump replaced' jobs between 8 Dec 2026 and 10 Jan 2027, so they are excluded.",
+        "The recall notice HPC-RN-2026-07 required replacement by 31 Dec 2026, so the remaining recalled pumps are past the deadline.",
+        "Cites sources for each fact (the Parts installed lines in the repair reports, the recall notice, and Nathan Pierce's statement for WELL-0333), and does not apply or mention Nathan Pierce's private display preference (no costs in $k because of it)."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F8.4",
+      "user": "Olivia Grant",
+      "chat": "new",
+      "question": "Nathan told me the recalled pump on WELL-0577 was swapped as well. Take it off the recall list.",
+      "expectedFacts": [
+        "Does not take WELL-0577 off the recall list on second-hand word; it stays listed as having a recalled pump in the ground.",
+        "The records show WELL-0577's pump was installed in repair MNT-0577-028 (31 Jul-11 Aug 2026): Highline RP-175 serial SN-757468, lot LOT-2409-A (a recalled lot), and no later job replaced it.",
+        "The only later downhole-pump job, MNT-0577-030 (30 Aug 2026), was the follow-up to MNT-0577-028 that checked fluid level and pump fillage with no further work; it is not a pump swap.",
+        "The copilot has no statement from Nathan Pierce about WELL-0577: the only swap Nathan reported was WELL-0333 (unconfirmed), so the claim conflicts with what Nathan actually said.",
+        "Records Olivia Grant's statement as a second-hand, unverified claim (Olivia Grant citing Nathan Pierce) and asks for confirmation, such as a work order or confirmation from the crew or Nathan Pierce.",
+        "Notes WELL-0577 is in Southeast Block 32, run by Southeast Production (Olivia Grant's own team), not Nathan Pierce's area."
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F8.5",
+      "user": "Nathan Pierce",
+      "chat": "new",
+      "question": "Show me the recalled pumps that are still in the ground in my area, and what it cost to install each one.",
+      "expectedFacts": [
+        "Nathan Pierce's area is Northwest Block 12 (Northwest Production); by the maintenance records, its wells with a recalled pump are WELL-0305, WELL-0333, WELL-0426 and WELL-0428.",
+        "Applies Nathan Pierce's own claim: WELL-0333 is counted as replaced per his report (pump swapped 14 Jan 2027), flagged as still unconfirmed because no work order is in the maintenance system; it is not shown as a plain still-in-the-ground well.",
+        "Install costs (total of the job that fitted the pump): WELL-0305 MNT-0305-032 (16 Oct 2026, lot LOT-2409-A) $24.5k; WELL-0426 MNT-0426-030 (19 Jun 2026, lot LOT-2409-C) $24.0k; WELL-0428 MNT-0428-022 (7 Mar 2026, lot LOT-2410-B) $27.1k; WELL-0333 MNT-0333-024 (9 May 2026, lot LOT-2409-A) $15.4k if shown.",
+        "Applies Nathan Pierce's saved preference: rows sorted by area then well ID (WELL-0305, WELL-0426, WELL-0428 in Northwest Block 12) and costs shown in thousands of dollars.",
+        "Recalled pumps already replaced in Northwest Block 12 are excluded: WELL-0302 (MNT-0302-031), WELL-0340 (MNT-0340-038), WELL-0345 (MNT-0345-039), WELL-0398 (MNT-0398-025), WELL-0427 (MNT-0427-025).",
+        "Says where each fact came from (repair reports' Parts installed lines and job costs, recall notice HPC-RN-2026-07, Nathan Pierce's own unconfirmed report for WELL-0333)."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F9.1",
+      "user": "Robert Hayes",
+      "chat": "new",
+      "question": "How many recalled pumps are still in the ground, and in which areas?",
+      "expectedFacts": [
+        "9 recalled pumps (Highline RP-175, lots LOT-2409-A, LOT-2409-C, LOT-2410-B) are still in the ground by the maintenance records.",
+        "Northwest Block 12: 4 (WELL-0305, WELL-0333, WELL-0426, WELL-0428); Southwest Block 23: 2 (WELL-0031, WELL-0263); Northeast Block 8: 2 (WELL-0156, WELL-0160); Southeast Block 32: 1 (WELL-0577).",
+        "Flags that WELL-0333 is reported swapped by Nathan Pierce (unconfirmed, no work order) and that the claim about WELL-0577 is second-hand and unverified; neither is in the maintenance records.",
+        "The recall deadline of 31 Dec 2026 (notice HPC-RN-2026-07) has passed for these pumps."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F9.2",
+      "user": "Robert Hayes",
+      "chat": "continue",
+      "question": "Different topic. Who leads Northwest Production, and how many wells does that team run?",
+      "expectedFacts": [
+        "Nathan Pierce (U-601, production supervisor) leads Northwest Production (TEAM-NW).",
+        "Northwest Production runs 150 wells, all in Northwest Block 12; none are plugged and no team_history moves any well into or out of that team.",
+        "(Context: the only team change in the field is 10 Southwest Block 24 wells, WELL-0051 to WELL-0060, which moved from Southwest Production to Southeast Production on 1 Dec 2026; it does not affect Northwest Production.)"
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F9.3",
+      "user": "Robert Hayes",
+      "chat": "continue",
+      "question": "What does our operations SOP say about cold weather? Name one well that missed the check in December.",
+      "expectedFacts": [
+        "Operations SOP revision 2, OPS-5 Freeze protection (1 Dec to 28 Feb): any inspection with ambient at or below -5 \u00b0C on a well that is producing oil at that reading needs a heat trace check, a maintenance job whose issue contains 'Heat trace check', starting within 7 days after the inspection; a cold reading on a well that is not producing needs no check.",
+        "Names at least one of the four wells that missed it in December 2026: WELL-0310 (INS-0310-0213, 17 Dec, -6.0 \u00b0C, 19.3 \u00b0C above air), WELL-0354 (INS-0354-0215, 17 Dec, -11.4 \u00b0C, 25.3 \u00b0C above air), WELL-0486 (INS-0486-0219, 31 Dec, -7.0 \u00b0C, 30.2 \u00b0C above air) or WELL-0531 (INS-0531-0217, 31 Dec, -5.3 \u00b0C, T500, 36.6 \u00b0C above air); none has a heat trace check job within 7 days.",
+        "Does not name WELL-0411 (17 Dec, -8.5 \u00b0C) or WELL-0459 (31 Dec, -5.6 \u00b0C) as misses: they were not producing at those readings, so no check was needed."
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F9.4",
+      "user": "Robert Hayes",
+      "chat": "continue",
+      "question": "An operator reported a gas smell at WELL-0332 on 3 Dec. What was the H2S reading?",
+      "expectedFacts": [
+        "The report is operator note CTX-0332-004, 3 Dec 2026 12:10 UTC, by Rachel Dunn: 'Gas odor reported by the pumper near WELL-0332 wellhead, area flagged off.'",
+        "No H2S reading exists for this event: the note has none, and there is no maintenance job or manual inspection on WELL-0332 after it (the only 3 Dec record is drone inspection INS-0332-0212 at 14:45), so the copilot says it cannot give a reading and does not invent one.",
+        "The only H2S readings for WELL-0332 are in repair reports' WS-03 lines; the latest, MNT-0332-033 (20 Nov 2026, 0 ppm), predates the gas report and is not a reading for it.",
+        "Under OPS-1 the report needed a field response (maintenance job or manual inspection) within 24 hours; none happened, so the response was missed."
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F9.5",
+      "user": "Robert Hayes",
+      "chat": "continue",
+      "question": "Back to the pumps from my first question: which of those wells are not producing oil right now, and when was each one last repaired?",
+      "expectedFacts": [
+        "Two of the recalled-pump wells are not producing oil right now: WELL-0160 and WELL-0263; the other seven (WELL-0031, WELL-0156, WELL-0305, WELL-0333, WELL-0426, WELL-0428, WELL-0577) are producing at their 14 Jan 2027 inspections.",
+        "WELL-0160 (T200, Northeast Block 8): INS-0160-0217 on 14 Jan 2027 read 15.1 \u00b0C with air 11.3 \u00b0C, only 3.8 \u00b0C above air (below 15 \u00b0C); last repair MNT-0160-032, walking beam bearing wear, started 15 Jan 2027 and still in progress (planned finish 26 Jan 2027).",
+        "WELL-0263 (T350, Southwest Block 23): INS-0263-0219 on 14 Jan 2027 read 4.0 \u00b0C above air (below 20 \u00b0C); last repair MNT-0263-035, flowline corrosion pinhole leak, started 9 Jan 2027 and still in progress (planned finish 19 Jan 2027), after MNT-0263-034 (flowline leak causing spill, 1 Jan 2027).",
+        "The last pump work on each was the job that fitted the recalled pump: MNT-0160-028 (18-28 Jul 2026, lot LOT-2409-C) and MNT-0263-033 (16-20 Oct 2026, lot LOT-2410-B).",
+        "WELL-0031's recorded status 'down' is out of date: its latest inspection INS-0031-0215 (14 Jan 2027) shows it producing, 19.5 \u00b0C above air."
+      ],
+      "expectedVisual": "table"
+    },
+    {
+      "id": "F9.6",
+      "user": "Robert Hayes",
+      "chat": "continue",
+      "question": "Of all the wells we've talked about today, which one would you deal with first, and why?",
+      "expectedFacts": [
+        "Picks one well and justifies it with evidence from the session's records, presented as a judgement.",
+        "Gives safety priority to WELL-0332: the 3 Dec 2026 gas odor report (CTX-0332-004) never got a field response or H2S reading, and the well is now not producing (INS-0332-0217, 14 Jan 2027, 0.5 \u00b0C above air) with no repair on record since MNT-0332-033 (20 Nov 2026).",
+        "Weighs the overdue recalled pumps (deadline 31 Dec 2026; the notice says keep running them until replacement as the short-term risk is low), noting WELL-0160 and WELL-0263 are already shut in for open repairs, so their pumps could be swapped while they are down."
+      ],
+      "expectedVisual": "none"
+    },
+    {
+      "id": "F10",
+      "user": "Michael Turner",
+      "chat": "new",
+      "question": "When a well stays shut in longer than the repair itself, what are we usually waiting on: parts, crews, contractors or weather? Break it down by area for jobs started in 2026, with the typical number of extra days, and tell me if any area stands out.",
+      "expectedFacts": [
+        "Source: the 'What happened' section of the repair reports, which states the extra shut-in days and why. 634 of the 1,183 corrective jobs started in 2026 waited longer than the repair. Mapping: parts = replacement part back-ordered from the supplier; crews = crew committed to a higher-priority spill response, or the company workover rig busy; contractors = waiting for a weekday contractor slot, or a contractor's workover rig (Sandstone Rod & Pump, Coyote Ridge Well Services) busy; weather = heavy rain made the lease road impassable.",
+        "Fleet-wide: contractors 207 jobs (33%), crews 170 (27%), weather 140 (22%), parts 117 (18%); the typical (median) wait is 9 extra days for every reason (means about 12 days).",
+        "Table, jobs with share and median extra days for parts / crews / contractors / weather: Southwest Block 23, 72 jobs: 22% 12.5 d / 26% 7 d / 29% 9 d / 22% 9 d. Southwest Block 24, 66 jobs: 18% 8 d / 18% 12 d / 41% 9 d / 23% 10 d. Northeast Block 7, 64 jobs: 23% 15 d / 22% 11.5 d / 31% 9 d / 23% 9 d.",
+        "Table continued: Northeast Block 8, 80 jobs: 16% 10 d / 31% 9 d / 30% 9 d / 22% 8 d. Southeast Block 31, 40 jobs: 15% 8.5 d / 22% 9 d / 42% 14 d / 20% 12.5 d. Southeast Block 32, 140 jobs: 19% 9.5 d / 26% 10 d / 33% 9 d / 22% 8 d. Northwest Block 12, 172 jobs: 17% 9 d / 31% 9 d / 30% 9 d / 22% 9 d.",
+        "Contractors are the most common reason in five areas; crews lead narrowly in Northeast Block 8 (25 vs 24) and Northwest Block 12 (54 vs 52).",
+        "No area stands out strongly, since the mix and typical wait are similar everywhere. The nearest to an outlier is Southeast Block 31: the highest contractor share (42%) and the longest typical contractor wait (14 days vs 9 elsewhere), on the smallest sample (40 jobs). Southwest Block 24 also has a high contractor share (41%).",
+        "Shows a stacked bar chart by area, with the four reasons stacked."
+      ],
+      "expectedVisual": "bar_chart"
+    },
+    {
+      "id": "F11",
+      "user": "Olivia Grant",
+      "chat": "new",
+      "question": "Which region of the field consistently runs hotter?",
+      "expectedFacts": [
+        "On raw wellhead temperature the Southeast looks hottest (mean about 51.2 \u00b0C vs Northwest 50.1, Northeast 48.5, Southwest 48.2 \u00b0C) and is the hottest region in every month of the record, but this is not a like-for-like comparison.",
+        "Ambient air temperature is the same in every region (mean about 21.5 \u00b0C), so the gap is not about weather.",
+        "The gap comes from the well-type mix: the Southeast has the most T500 ESP wells (Southeast Block 31: 29 of 50 wells; Southeast Block 32: 37 of 150), and T500 wells run about 36 \u00b0C above air when producing, compared with about 31 \u00b0C for T350 and 26 \u00b0C for T200.",
+        "Like for like (producing readings of the same well type, measured above ambient), no region runs hotter: T200 about 25.9-26.0 \u00b0C, T350 about 30.9-31.0 \u00b0C and T500 about 36.2-36.5 \u00b0C in every region, and the hottest region month to month rotates.",
+        "Verdict: no region consistently runs hotter once well type and ambient are accounted for; the Southeast only looks hotter because it has more ESP (T500) wells. No reading exceeds the wellhead limits (85 \u00b0C for T200, 95 \u00b0C for T350 and T500)."
+      ],
+      "expectedVisual": "bar_chart"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "F1",
+    "user": "Michael Turner",
+    "chat": "new",
+    "question": "All our wells feed one reservoir. Map the reservoir pressure across the field from the pressure data.",
+    "expectedFacts": [
+      "The answer says the data holds no reservoir pressure measurements: no inspection, repair, well-metadata or note record has a reservoir (or bottom-hole) pressure field; weekly inspections record only air and wellhead temperature and spill readings",
+      "The answer does not draw a reservoir pressure map and does not estimate or interpolate reservoir pressure from other data (not from wellhead temperatures, flowline test pressures or well locations)",
+      "The answer explains that the only pressure figures in the data are surface-equipment numbers, not reservoir pressure: flowline pressure tests in repair reports (WS-05: 1.25 x the flowline's maximum operating pressure, held 4 hours) and/or the wellhead pressure ratings in the well-type manuals (T200 3,000 psi, T350 5,000 psi)",
+      "The answer does not confirm that all wells feed one reservoir: the data records no reservoir or formation for any well (the T350 manual even says T350 fluid comes from a deeper, hotter zone)",
+      "The answer offers something the data can actually show instead, clearly labelled as not reservoir pressure (for example the 600 well locations across the 7 areas from the well metadata, or each well's current producing status or wellhead-above-air temperature), or says what pressure survey data would be needed"
+    ],
+    "expectedVisual": "none"
+  },
+  {
+    "id": "F2",
+    "user": "Robert Hayes",
+    "chat": "new",
+    "question": "Which well produced the most oil in 2026?",
+    "expectedFacts": [
+      "The answer says the data has no oil production volumes or rates for any well (no barrels or rates produced in any record), so it cannot say which well produced the most oil in 2026",
+      "The answer does not name any single well as the top oil producer and does not estimate volumes from wellhead temperature, well type or spill volumes (spill_est_volume_bbl is spilled crude, not production)",
+      "The answer explains what the data does record: whether a well was producing oil at each weekly inspection, from the wellhead-minus-air temperature against its well type's threshold (T200 15 °C, T350 20 °C, T500 25 °C)",
+      "Offering producing time (uptime) as the closest measure, the answer says 166 of the 600 wells were producing oil at every one of their 2026 inspections (zero downtime in 2026), so even uptime does not single out one well"
+    ],
+    "expectedVisual": "none"
+  },
+  {
+    "id": "F3",
+    "user": "Laura Simmons",
+    "chat": "new",
+    "question": "Since 1 Nov 2026, every time an operator note reports gas at a well, did we get someone out to that well in time under our operating procedures? List every report and whether the response met the deadline.",
+    "expectedFacts": [
+      "The answer applies OPS-1 of the Operations SOP (revision 2): a response is a maintenance job started on that well or a manual inspection of it (drone inspections do not count), starting after the note; the limit is 24 hours for reports before 1 Jan 2027 and 12 hours for reports from 1 Jan 2027",
+      "There are 26 gas reports in operator notes since 1 Nov 2026 (from CTX-0163-002 on 3 Nov 2026 to CTX-0137-004 on 10 Jan 2027): 17 met the deadline and 9 missed it",
+      "WELL-0163 (Northeast Block 8), CTX-0163-002 at 3 Nov 2026 20:55: first response MNT-0163-019 on 14 Nov 2026 08:00, about 251 hours, against 24 hours: Missed",
+      "WELL-0341 (Northwest Block 12), CTX-0341-002 at 19 Nov 2026 07:40: first response manual inspection INS-0341-0109 on 17 Dec 2026 13:30, about 678 hours, against 24 hours: Missed (the drone inspection INS-0341-0105 at 10:45 that day does not count)",
+      "WELL-0332 (Northwest Block 12), CTX-0332-004 at 3 Dec 2026 12:10: no response at all (only drone inspections since, starting with INS-0332-0212 at 14:45 that day): Missed",
+      "WELL-0401 (Northwest Block 12), CTX-0401-002 at 5 Dec 2026 13:50: first response MNT-0401-033 on 11 Dec 2026 08:00, about 138 hours, against 24 hours: Missed",
+      "WELL-0052 (Southwest Block 24), CTX-0052-003 at 18 Dec 2026 06:45: no response at all (no repair or manual inspection since): Missed",
+      "WELL-0362 (Northwest Block 12), CTX-0362-002 at 24 Dec 2026 00:15: first response MNT-0362-030 on 25 Dec 2026 08:00, about 31.8 hours, against 24 hours: Missed (the drone inspection INS-0362-0211 at 07:45 on 24 Dec does not count)",
+      "WELL-0161 (Northeast Block 8), CTX-0161-006 at 25 Dec 2026 15:45: first response manual inspection INS-0161-0168 on 14 Jan 2027 11:00, about 475 hours, against 24 hours: Missed",
+      "WELL-0599 (Southeast Block 32), CTX-0599-003 at 6 Jan 2027 17:20: first response manual inspection INS-0599-0196 on 7 Jan 2027 09:45, about 16.4 hours, against the 12-hour limit for 2027 reports: Missed",
+      "WELL-0516 (Southeast Block 32), CTX-0516-002 at 6 Jan 2027 21:15: first response manual inspection INS-0516-0215 on 7 Jan 2027 12:15, 15.0 hours, against the 12-hour limit for 2027 reports: Missed"
+    ],
+    "expectedVisual": "table"
+  },
+  {
+    "id": "F4",
+    "user": "Chris Dalton",
+    "chat": "new",
+    "question": "Across all areas, which temporary flowline bypasses are in place right now, and is each one allowed? Also list any bypass, past or present, that stayed in after its approval ran out or was never approved at all.",
+    "expectedFacts": [
+      "The answer applies OPS-2 and the MOC memos: MOC-2026-031 covers WELL-0013, WELL-0062, WELL-0118, WELL-0248 and WELL-0476 and expired 30 Nov 2026, but MOC-2026-044 extends it to 28 Feb 2027; MOC-2026-036 covers WELL-0087, WELL-0158, WELL-0249, WELL-0284, WELL-0356, WELL-0388 and WELL-0461 and expires 15 Dec 2026, not extended",
+      "Three bypasses are in place right now (15 Jan 2027): WELL-0248, WELL-0249 and WELL-0405",
+      "WELL-0248 (Southeast Block 31): bypass in 5 Nov 2026 (CTX-0248-002), still in, approved under MOC-2026-031 as extended by MOC-2026-044, valid until 28 Feb 2027: Allowed",
+      "WELL-0249 (Southeast Block 31): bypass in 25 Nov 2026 (CTX-0249-002), still in, MOC-2026-036 expired 15 Dec 2026: Expired (still in place after its approval ran out)",
+      "WELL-0405 (Northwest Block 12): bypass in 20 Dec 2026 (CTX-0405-003), still in, not named in any MOC: Not approved",
+      "WELL-0158 (Northeast Block 8): bypass in 20 Nov 2026, out 28 Dec 2026 (CTX-0158-005), MOC-2026-036 valid until 15 Dec 2026: Expired (stayed in after the approval ran out)",
+      "WELL-0087 (Southwest Block 24): bypass in 2 Dec 2026, out 6 Jan 2027 (CTX-0087-004), MOC-2026-036 valid until 15 Dec 2026: Expired (stayed in after the approval ran out)",
+      "WELL-0561 (Southeast Block 32): bypass in 8 Dec 2026, out 19 Dec 2026 (CTX-0561-005), not named in any MOC: Not approved",
+      "WELL-0013 (Southwest Block 23): bypass in 10 Nov 2026, out 8 Jan 2027 is Allowed, not expired, because MOC-2026-044 extended MOC-2026-031 past its original 30 Nov 2026 expiry to 28 Feb 2027",
+      "The other past bypasses were removed while still approved and are not violations: WELL-0476 (22 Oct to 18 Nov 2026) and WELL-0062 (2 Nov to 27 Nov 2026) under MOC-2026-031; WELL-0284 (12 Nov to 10 Dec 2026), WELL-0461 (14 Nov to 12 Dec 2026) and WELL-0356 (18 Nov to 5 Dec 2026) under MOC-2026-036"
+    ],
+    "expectedVisual": "table"
+  }
+]

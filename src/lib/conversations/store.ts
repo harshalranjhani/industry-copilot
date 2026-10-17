@@ -48,6 +48,14 @@ export interface AnswerUsage extends UsageInput {
   createdAt: string;
 }
 
+/** How a user wants answers presented, e.g. "draw wellhead temperature in red". Private to that user. */
+export interface Preference {
+  /** "PREF-<n>". */
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
 export class ConversationConflict extends Error {}
 
 /**
@@ -73,6 +81,11 @@ export interface UserConversations {
   recentDigest(options?: { limit?: number; excludeConversationId?: string }): DigestEntry[];
   /** Digest entries matching every word of the text, newest first. */
   searchDigest(text: string, options?: { limit?: number; excludeConversationId?: string }): DigestEntry[];
+  /** The user's standing preferences, oldest first. */
+  preferences(): Preference[];
+  addPreference(text: string): Preference;
+  /** False when the user has no preference with that ID. */
+  removePreference(id: string): boolean;
 }
 
 export interface ConversationStore {
@@ -116,6 +129,13 @@ CREATE TABLE IF NOT EXISTS answer_usage (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS usage_by_conversation ON answer_usage (conversation_id, seq);
+CREATE TABLE IF NOT EXISTS preferences (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS preferences_by_user ON preferences (user_id, seq);
 `;
 
 type Row = Record<string, any>;
@@ -138,6 +158,8 @@ const toDigest = (row: Row): DigestEntry => ({
   recordIds: JSON.parse(row.record_ids),
   summary: row.summary,
 });
+
+const toPreference = (row: Row): Preference => ({ id: `PREF-${row.seq}`, text: row.text, createdAt: row.created_at });
 
 const toUsage = (row: Row): AnswerUsage => ({
   conversationId: row.conversation_id,
@@ -275,6 +297,21 @@ export function openConversationStore(path: string, options: { now?: () => Date 
             params.push(excludeConversationId);
           }
           return digestQuery(clauses.length ? `AND ${clauses.join(" AND ")}` : "", params, limit);
+        },
+        preferences() {
+          return (db.prepare("SELECT * FROM preferences WHERE user_id = ? ORDER BY seq").all(userId) as Row[]).map(toPreference);
+        },
+        addPreference(text) {
+          const at = stamp();
+          const { lastInsertRowid } = db
+            .prepare("INSERT INTO preferences (user_id, text, created_at) VALUES (?, ?, ?)")
+            .run(userId, text.trim(), at);
+          return { id: `PREF-${lastInsertRowid}`, text: text.trim(), createdAt: at };
+        },
+        removePreference(id) {
+          const seq = /^PREF-(\d+)$/i.exec(id.trim())?.[1];
+          if (!seq) return false;
+          return Number(db.prepare("DELETE FROM preferences WHERE seq = ? AND user_id = ?").run(Number(seq), userId).changes) > 0;
         },
       };
     },

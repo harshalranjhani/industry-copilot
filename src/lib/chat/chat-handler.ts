@@ -1,12 +1,19 @@
 import { Agent } from "@earendil-works/pi-agent-core";
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { myPreferencesTool } from "@/lib/agent/preferences-tool";
 import { recallMyConversationsTool } from "@/lib/agent/recall-tool";
 import { type CopilotUser, USER_HEADER } from "@/lib/conversations/identity";
 import { conversationTitle, digestFromAnswer, messageText } from "@/lib/conversations/memory";
 import { openuiNotice } from "@/lib/chat/notice";
 import { MODEL_HEADER } from "@/lib/models";
-import { ConversationConflict, type ConversationStore, type DigestEntry, type UsageInput } from "@/lib/conversations/store";
+import {
+  ConversationConflict,
+  type ConversationStore,
+  type DigestEntry,
+  type Preference,
+  type UsageInput,
+} from "@/lib/conversations/store";
 
 export interface ChatHandlerOptions {
   models: Models;
@@ -14,9 +21,9 @@ export interface ChatHandlerOptions {
   modelFor: (modelId: string) => Model<Api> | undefined;
   /** The model a new conversation starts on when the request names none. */
   defaultModelId: string;
-  /** The system prompt for a new conversation: who is talking and what they discussed before. */
-  systemPrompt: (context: { user: CopilotUser; memory: DigestEntry[] }) => string;
-  /** The domain tools; `recall_my_conversations` is added per user and conversation. */
+  /** The system prompt for a new conversation: who is talking, what they discussed before and how they like answers. */
+  systemPrompt: (context: { user: CopilotUser; memory: DigestEntry[]; preferences: Preference[] }) => string;
+  /** The domain tools; `recall_my_conversations` and `my_preferences` are added per user and conversation. */
   tools: AgentTool<any>[];
   /** Durable, per-user conversations. */
   conversations: ConversationStore;
@@ -111,14 +118,22 @@ export function createChatHandler({
     let agent = live.get(key);
     if (!agent) {
       const history = conversations.forUser(user.userId);
-      const conversationTools = [...tools, recallMyConversationsTool(user, history, conversationId)];
+      const conversationTools = [
+        ...tools,
+        recallMyConversationsTool(user, history, conversationId),
+        myPreferencesTool(user, history),
+      ];
       agent = new Agent({
         // A resumed transcript carries its own system prompt, so the conversation keeps the digest it started with.
         initialState:
           transcript.length > 0
             ? { model, tools: conversationTools, messages: transcript as Agent["state"]["messages"] }
             : {
-                systemPrompt: systemPrompt({ user, memory: history.recentDigest({ excludeConversationId: conversationId }) }),
+                systemPrompt: systemPrompt({
+                  user,
+                  memory: history.recentDigest({ excludeConversationId: conversationId }),
+                  preferences: history.preferences(),
+                }),
                 model,
                 tools: conversationTools,
               },

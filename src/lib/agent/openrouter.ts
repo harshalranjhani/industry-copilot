@@ -22,7 +22,7 @@ export function openRouterChatOptions(runtime: CopilotRuntime = getRuntime()): C
     models,
     modelFor,
     defaultModelId,
-    systemPrompt: ({ user, memory }) => composeSystemPrompt({ ...promptParts, user, memory }),
+    systemPrompt: ({ user, memory, preferences }) => composeSystemPrompt({ ...promptParts, user, memory, preferences }),
     tools: createCopilotTools(fleet),
     conversations,
     findUser: (userId) => fleet.findUser(userId),

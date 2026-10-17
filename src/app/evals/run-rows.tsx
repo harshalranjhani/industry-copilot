@@ -5,7 +5,7 @@ import { ThemeProvider, useSystemThemeMode } from "@openuidev/react-ui";
 import { useState } from "react";
 import { seconds, usd } from "@/lib/evals/report";
 import type { StepResult } from "@/lib/evals/runner";
-import { copilotLibrary } from "@/lib/openui/library";
+import { copilotLibrary } from "@/lib/openui/app-library";
 
 /** Native disclosure rows keep the results readable and keyboard-accessible at any width. */
 export function RunRows({ steps }: { steps: StepResult[] }) {

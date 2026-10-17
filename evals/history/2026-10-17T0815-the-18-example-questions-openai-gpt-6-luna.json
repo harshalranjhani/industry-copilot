@@ -1,0 +1,1051 @@
+{
+  "scenario": "The 18 example questions",
+  "model": "openai/gpt-6-luna",
+  "graderModel": "anthropic/claude-sonnet-5.5",
+  "startedAt": "2026-10-17T08:15:34.206Z",
+  "passed": 13,
+  "total": 27,
+  "steps": [
+    {
+      "step": {
+        "id": "Q1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Is WELL-0001 producing oil right now? When was it last inspected, and by whom?",
+        "expectedFacts": [
+          "WELL-0001 is not producing oil",
+          "The latest inspection is INS-0001-0203, on 15 Oct 2026, done by drone",
+          "The inspector is Ryan Brooks",
+          "The wellhead was only 3.2 °C warmer than the air, below the T200 limit",
+          "The reason is note CTX-0001-003 by Jake Morales: a planned shut-in from 7 Oct for rod string replacement, expected back around 20 Oct, not yet in the maintenance system",
+          "The recorded status still says active, which is out of date"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "50ef0f8e-da68-4235-b799-b7c0754fc78b",
+      "answer": "root = Stack([answer, reason, sources])\nanswer = Card([heading, result, metadata, status])\nheading = CardHeader(\"WELL-0001: not producing oil\", \"Latest inspection: 15 Oct 2026\")\nresult = TextContent(\"The latest inspection measured the wellhead 3.2 °C above ambient (25.6 °C vs 22.4 °C), below the T200 producing threshold of 15 °C above ambient.\")\nmetadata = EntityList([inspector, method, area, wellType])\ninspector = {left: \"Inspected by\", right: \"Ryan Brooks\"}\nmethod = {left: \"Method\", right: \"Drone\"}\narea = {left: \"Area\", right: \"Southwest Block 23\"}\nwellType = {left: \"Well type\", right: \"T200\"}\nstatus = Callout(\"warning\", \"Recorded status is out of date\", \"The system of record says active, but the latest inspection found the well not producing.\")\nreason = TextContent(\"The inspector remarked, “Pump jack not moving.” A valid operator note from Jake Morales says the well was shut in from 7 Oct for a planned rod string replacement, with work expected to finish around 20 Oct; the note says the work order is not yet in the maintenance system.\")\nsources = Sources([inspectionSource, ruleSource, noteSource])\ninspectionSource = SourceItem(\"inspection\", \"INS-0001-0203\", \"Latest inspection, temperatures and inspector remark\")\nruleSource = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold\")\nnoteSource = SourceItem(\"note\", \"CTX-0001-003\", \"Planned shut-in and rod string replacement note\")",
+      "toolCalls": [
+        "well_snapshot"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "WELL-0001 is not producing oil",
+          "The latest inspection is INS-0001-0203, on 15 Oct 2026, done by drone",
+          "The inspector is Ryan Brooks",
+          "The wellhead was only 3.2 °C warmer than the air, below the T200 limit",
+          "The reason is note CTX-0001-003 by Jake Morales: a planned shut-in from 7 Oct for rod string replacement, expected back around 20 Oct, not yet in the maintenance system",
+          "The recorded status still says active, which is out of date"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 46909,
+      "outputTokens": 387,
+      "costUsd": 0.0034013949999999998,
+      "latencyMs": 7421
+    },
+    {
+      "step": {
+        "id": "Q2",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which wells in Northeast Block 8 are not producing oil right now, and why? Show them in a table.",
+        "expectedFacts": [
+          "Exactly four wells are not producing: WELL-0164, WELL-0170, WELL-0172 and WELL-0175, all last inspected on 15 Oct 2026",
+          "WELL-0164: wellhead 4.1 °C above air, recorded status active (out of date), no recorded reason; the inspector noted \"Pump jack not moving.\"",
+          "WELL-0170: wellhead 2.9 °C above air, recorded status down, repair MNT-0170-031 (pump jack walking beam bearing wear) started 19 Sep and still open",
+          "WELL-0172: wellhead 5.7 °C above air, recorded status active (out of date), repair MNT-0172-028 (flowline pinhole leak) started 3 Oct and still open",
+          "WELL-0175: wellhead 0.4 °C above air, recorded status active (out of date), no recorded reason",
+          "Where nothing explains the stop, the answer says no reason is recorded and suggests a check instead of inventing a cause"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "9653ae93-3e10-42ea-8198-b244127f64ea",
+      "answer": "root = Stack([title, summary, table, note, sources])\ntitle = TextContent(\"Northeast Block 8 — not producing\", \"large-heavy\")\nsummary = TextContent(\"Four wells are not producing according to their latest inspections, all dated 15 Oct 2026. Each is a T200; production requires a wellhead temperature at least 15 °C above ambient.\")\ntable = Table([wellCol, inspectionCol, readingCol, reasonCol, statusCol])\nwellCol = Col(\"Well\", [\"WELL-0164\", \"WELL-0170\", \"WELL-0172\", \"WELL-0175\"])\ninspectionCol = Col(\"Latest inspection · inspector\", [\"INS-0164-0205 · Tyler Hughes (manual)\", \"INS-0170-0206 · Ashley Bennett (drone)\", \"INS-0172-0206 · Jessica Reed (drone)\", \"INS-0175-0204 · Jessica Reed (drone)\"])\nreadingCol = Col(\"Wellhead − ambient · threshold\", [\"4.1 °C · 15 °C\", \"2.9 °C · 15 °C\", \"5.7 °C · 15 °C\", \"0.4 °C · 15 °C\"])\nreasonCol = Col(\"Recorded reason / context\", [\"Inspector remark: “Pump jack not moving.” No open repair or valid shut-in note recorded.\", \"Open corrective pump-jack repair MNT-0170-031 for walking beam bearing wear, planned through 28 Oct 2026.\", \"Inspector remark: “No stroke observed during flight.” Open corrective flowline repair MNT-0172-028 for a corrosion pinhole leak, planned through 21 Oct 2026.\", \"No reason is recorded: no inspector remark, open repair, or valid shut-in note. Check with the area team or arrange a field visit.\"])\nstatusCol = Col(\"Recorded status\", [\"Active — out of date\", \"Down — agrees\", \"Active — out of date\", \"Active — out of date\"])\nnote = Callout(\"info\", \"Interpreting the reasons\", \"The open repairs are recorded work, not confirmed causes of the wells’ non-producing readings. For WELL-0164 and WELL-0172, the inspector remarks are observations, not established causes. Producing status is based on temperature difference, not absolute wellhead temperature.\")\nsources = Sources([src1, src2, src3, src4, src5, src6, src7, src8, src9, src10, src11, src12])\nsrc1 = SourceItem(\"inspection\", \"INS-0164-0205\", \"WELL-0164 latest inspection and inspector remark\")\nsrc2 = SourceItem(\"inspection\", \"INS-0170-0206\", \"WELL-0170 latest inspection\")\nsrc3 = SourceItem(\"inspection\", \"INS-0172-0206\", \"WELL-0172 latest inspection and inspector remark\")\nsrc4 = SourceItem(\"inspection\", \"INS-0175-0204\", \"WELL-0175 latest inspection\")\nsrc5 = SourceItem(\"repair\", \"MNT-0170-031\", \"Open corrective pump-jack repair\")\nsrc6 = SourceItem(\"repair\", \"MNT-0172-028\", \"Open corrective flowline repair\")\nsrc7 = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold\")\nsrc8 = SourceItem(\"document\", \"WELL-0164 metadata\", \"Area, type, and recorded status\")\nsrc9 = SourceItem(\"document\", \"WELL-0170 metadata\", \"Area, type, and recorded status\")\nsrc10 = SourceItem(\"document\", \"WELL-0172 metadata\", \"Area, type, and recorded status\")\nsrc11 = SourceItem(\"document\", \"WELL-0175 metadata\", \"Area, type, and recorded status\")\nsrc12 = SourceItem(\"document\", \"OM-T200 §4\", \"Planned shut-in recording procedure\")",
+      "toolCalls": [
+        "query",
+        "well_snapshot",
+        "well_snapshot",
+        "well_snapshot",
+        "well_snapshot",
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "Exactly four wells are not producing: WELL-0164, WELL-0170, WELL-0172 and WELL-0175, all last inspected on 15 Oct 2026",
+          "WELL-0164: wellhead 4.1 °C above air, recorded status active (out of date), no recorded reason; the inspector noted \"Pump jack not moving.\"",
+          "WELL-0175: wellhead 0.4 °C above air, recorded status active (out of date), no recorded reason",
+          "Where nothing explains the stop, the answer says no reason is recorded and suggests a check instead of inventing a cause"
+        ],
+        "missedFacts": [
+          "WELL-0170: wellhead 2.9 °C above air, recorded status down, repair MNT-0170-031 (pump jack walking beam bearing wear) started 19 Sep and still open",
+          "WELL-0172: wellhead 5.7 °C above air, recorded status active (out of date), repair MNT-0172-028 (flowline pinhole leak) started 3 Oct and still open"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Facts 3 and 4 omit the repair start dates (19 Sep for MNT-0170-031, 3 Oct for MNT-0172-028) and give only planned end dates; the other facts, the table and the sources are fine."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 97988,
+      "outputTokens": 1136,
+      "costUsd": 0.004490775,
+      "latencyMs": 14861
+    },
+    {
+      "step": {
+        "id": "Q3",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Show a line chart of WELL-0001's wellhead temperature against air temperature for the last 13 weeks, and mark when it was not producing oil.",
+        "expectedFacts": [
+          "The chart has 13 weekly readings, from 23 Jul to 15 Oct 2026",
+          "WELL-0001 was not producing oil on 8 Oct and 15 Oct, and only on those dates, and the chart marks them"
+        ],
+        "expectedVisual": "line_chart"
+      },
+      "threadId": "8817d2a4-308e-4ecf-95d4-27d4498c7a2b",
+      "answer": "root = Stack([header, chartCard, notProducing, sources])\nheader = TextContent(\"WELL-0001 temperatures — last 13 inspections\", \"large-heavy\")\nchartCard = Card([chartTitle, chart])\nchartTitle = CardHeader(\"Wellhead vs. ambient temperature\", \"Weekly readings; dates marked ✕ were below the T200 producing threshold.\")\nchart = LineChart(dates, [wellheadSeries, ambientSeries], \"linear\", \"Inspection date\", \"Temperature (°C)\")\nwellheadSeries = Series(\"Wellhead temperature\", wellheadTemps)\nambientSeries = Series(\"Air (ambient) temperature\", ambientTemps)\nnotProducing = Callout(\"warning\", \"Not producing oil\", \"INS-0001-0202 on 8 Oct 2026 and INS-0001-0203 on 15 Oct 2026: each was 3.2 °C above ambient, below the T200 threshold of 15 °C. These dates are marked ✕ in the chart.\")\nsources = Sources([i0191, i0192, i0193, i0194, i0195, i0196, i0197, i0198, i0199, i0200, i0201, i0202, i0203, rule])\ni0191 = SourceItem(\"inspection\", \"INS-0001-0191\", \"23 Jul 2026 temperatures and production\")\ni0192 = SourceItem(\"inspection\", \"INS-0001-0192\", \"30 Jul 2026 temperatures and production\")\ni0193 = SourceItem(\"inspection\", \"INS-0001-0193\", \"6 Aug 2026 temperatures and production\")\ni0194 = SourceItem(\"inspection\", \"INS-0001-0194\", \"13 Aug 2026 temperatures and production\")\ni0195 = SourceItem(\"inspection\", \"INS-0001-0195\", \"20 Aug 2026 temperatures and production\")\ni0196 = SourceItem(\"inspection\", \"INS-0001-0196\", \"27 Aug 2026 temperatures and production\")\ni0197 = SourceItem(\"inspection\", \"INS-0001-0197\", \"3 Sep 2026 temperatures and production\")\ni0198 = SourceItem(\"inspection\", \"INS-0001-0198\", \"10 Sep 2026 temperatures and production\")\ni0199 = SourceItem(\"inspection\", \"INS-0001-0199\", \"17 Sep 2026 temperatures and production\")\ni0200 = SourceItem(\"inspection\", \"INS-0001-0200\", \"24 Sep 2026 temperatures and production\")\ni0201 = SourceItem(\"inspection\", \"INS-0001-0201\", \"1 Oct 2026 temperatures and production\")\ni0202 = SourceItem(\"inspection\", \"INS-0001-0202\", \"8 Oct 2026 temperatures and production\")\ni0203 = SourceItem(\"inspection\", \"INS-0001-0203\", \"15 Oct 2026 temperatures and production\")\nrule = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold: 15 °C above ambient\")\ndates = [\"23 Jul\", \"30 Jul\", \"6 Aug\", \"13 Aug\", \"20 Aug\", \"27 Aug\", \"3 Sep\", \"10 Sep\", \"17 Sep\", \"24 Sep\", \"1 Oct\", \"8 Oct ✕ not producing\", \"15 Oct ✕ not producing\"]\nwellheadTemps = [61.2, 58.2, 65.0, 60.6, 59.3, 61.2, 65.2, 52.8, 53.6, 45.7, 50.4, 23.4, 25.6]\nambientTemps = [33.1, 32.0, 35.1, 34.0, 36.3, 34.4, 34.5, 27.2, 31.2, 23.6, 23.0, 20.2, 22.4]",
+      "toolCalls": [
+        "query",
+        "query"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The chart has 13 weekly readings, from 23 Jul to 15 Oct 2026",
+          "WELL-0001 was not producing oil on 8 Oct and 15 Oct, and only on those dates, and the chart marks them"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 71824,
+      "outputTokens": 1082,
+      "costUsd": 0.00412194,
+      "latencyMs": 11410
+    },
+    {
+      "step": {
+        "id": "Q4",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "How many oil spills has WELL-0001 had in the last 4 years, and how much oil in total? List them in a table.",
+        "expectedFacts": [
+          "WELL-0001 had 6 spills totalling 15.1 barrels",
+          "The spills are 16 Mar 2023 (0.5 bbl), 27 Apr 2023 (2.6 bbl), 28 Sep 2023 (3.3 bbl), 19 Oct 2023 (0.3 bbl), 11 Jun 2026 (6.8 bbl) and 1 Oct 2026 (1.6 bbl)",
+          "There were 7 detections, but INS-0001-0070 (7 Mar 2024) was corrected as rainwater (CTX-0001-001) and does not count"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "a7da5965-6684-434c-8540-eb131b18ef5a",
+      "answer": "root = Stack([summary, table, note, sources])\nsummary = Card([header, total])\nheader = CardHeader(\"WELL-0001 oil spills — last 4 years\", \"17 Oct 2022–17 Oct 2026\")\ntotal = TextContent(\"6 spills; 15.1 bbl total.\", \"large-heavy\")\ntable = Table([idCol, dateCol, volumeCol, classCol, areaCol, notesCol])\nidCol = Col(\"Inspection\", [\"INS-0001-0021\", \"INS-0001-0027\", \"INS-0001-0048\", \"INS-0001-0051\", \"INS-0001-0185\", \"INS-0001-0201\"])\ndateCol = Col(\"Date\", [\"16 Mar 2023\", \"27 Apr 2023\", \"28 Sep 2023\", \"19 Oct 2023\", \"11 Jun 2026\", \"1 Oct 2026\"])\nvolumeCol = Col(\"Oil volume (bbl)\", [0.5, 2.6, 3.3, 0.3, 6.8, 1.6], \"number\")\nclassCol = Col(\"Spill class\", [\"Minor\", \"Moderate\", \"Moderate\", \"Minor\", \"Reportable\", \"Moderate\"])\nareaCol = Col(\"Pad area (%)\", [2.7, 6.6, 10.3, 0.8, 9.4, 4], \"number\")\nnotesCol = Col(\"Inspection note\", [\"Dark staining on pad.\", \"Oil sheen around cellar.\", \"Staining along flowline route.\", \"Staining along flowline route.\", \"Crude pooled around flowline coupling, ~9% of pad affected.\", \"Dark staining on pad.\"])\nnote = TextContent(\"Counts and volumes include real spills only; detections removed by correction are excluded.\")\nsources = Sources([src1, src2])\nsrc1 = SourceItem(\"inspection\", \"INS-0001-0021, INS-0001-0027, INS-0001-0048, INS-0001-0051, INS-0001-0185, INS-0001-0201\", \"WELL-0001 spill inspections and volumes\")\nsrc2 = SourceItem(\"document\", \"SOP-SR §3\", \"Spill classification thresholds\")",
+      "toolCalls": [
+        "query",
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "WELL-0001 had 6 spills totalling 15.1 barrels",
+          "The spills are 16 Mar 2023 (0.5 bbl), 27 Apr 2023 (2.6 bbl), 28 Sep 2023 (3.3 bbl), 19 Oct 2023 (0.3 bbl), 11 Jun 2026 (6.8 bbl) and 1 Oct 2026 (1.6 bbl)"
+        ],
+        "missedFacts": [
+          "There were 7 detections, but INS-0001-0070 (7 Mar 2024) was corrected as rainwater (CTX-0001-001) and does not count"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Fact 3 is missing: the answer never states that there were 7 detections or that INS-0001-0070 (7 Mar 2024) was corrected as rainwater (CTX-0001-001); it only says generically that corrected detections are excluded."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 71783,
+      "outputTokens": 658,
+      "costUsd": 0.003828225,
+      "latencyMs": 9051
+    },
+    {
+      "step": {
+        "id": "Q5",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "How many days was WELL-0001 down in 2025?",
+        "expectedFacts": [
+          "WELL-0001 was down 21 days in 2025, from three weekly inspections where it was not producing oil",
+          "24 Jul 2025: the wellhead read 51.6 °C but the air was 43.1 °C, only 8.5 °C warmer, so it was not producing; the cause was the prime mover tripping (MNT-0001-021)",
+          "16 Oct and 23 Oct 2025: a stuffing box packing leak (MNT-0001-023)"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "a07c13b4-ba0a-40a8-a367-da99854b3afc",
+      "answer": "root = Stack([answer, basis, sources])\nanswer = Card([header, result])\nheader = CardHeader(\"WELL-0001 downtime in 2025\")\nresult = TextContent(\"WELL-0001 was recorded as down for **21 days** in 2025, based on three inspections that found it not producing. The downtime convention assigns 7 days per such inspection.\")\nbasis = TextContent(\"Inspections: INS-0001-0140, INS-0001-0152, and INS-0001-0153.\")\nsources = Sources([src1, src2])\nsrc1 = SourceItem(\"inspection\", \"INS-0001-0140, INS-0001-0152, INS-0001-0153\", \"2025 inspections that found WELL-0001 not producing\")\nsrc2 = SourceItem(\"document\", \"SOP-RC §2 RC-03\", \"Downtime reporting threshold\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "WELL-0001 was down 21 days in 2025, from three weekly inspections where it was not producing oil"
+        ],
+        "missedFacts": [
+          "24 Jul 2025: the wellhead read 51.6 °C but the air was 43.1 °C, only 8.5 °C warmer, so it was not producing; the cause was the prime mover tripping (MNT-0001-021)",
+          "16 Oct and 23 Oct 2025: a stuffing box packing leak (MNT-0001-023)"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "States 21 days from three inspections, but omits the 24 Jul temperature evidence and MNT-0001-021 (prime mover trip) and the 16/23 Oct stuffing box leak (MNT-0001-023)."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 47499,
+      "outputTokens": 289,
+      "costUsd": 0.003361285,
+      "latencyMs": 4991
+    },
+    {
+      "step": {
+        "id": "Q6",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which 3 wells in Northeast Block 7 had the most downtime in the last 4 months? Show a bar chart.",
+        "expectedFacts": [
+          "The window is 16 Jun to 16 Oct 2026",
+          "WELL-0121 had 49 days of downtime (T200)",
+          "WELL-0138 had 42 days (T350)",
+          "WELL-0107 had 42 days (T350)",
+          "The next well, WELL-0119, had 28 days, so it is not in the top three"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "24fa4f4d-4026-4492-93b7-f7441bba4786",
+      "answer": "root = Stack([title, summary, chartCard, sources])\ntitle = TextContent(\"Top 3 wells by downtime — Northeast Block 7\", \"large-heavy\")\nsummary = TextContent(\"In the last four months (17 Jun–17 Oct 2026), WELL-0121 recorded 49 days of downtime. WELL-0107 and WELL-0138 each recorded 42 days.\")\nchartCard = Card([chartHeader, chart])\nchartHeader = CardHeader(\"Downtime by well\", \"Days recorded from non-producing inspections\")\nchart = BarChart(wells, [downtimeSeries], \"grouped\", \"Well\", \"Downtime (days)\")\nwells = [\"WELL-0121\", \"WELL-0107\", \"WELL-0138\"]\ndowntimeSeries = Series(\"Downtime days\", [49, 42, 42])\nsources = Sources([src1, src2, src3, src4, src5, src6, src7, src8, src9, src10, src11, src12, src13, src14, src15])\nsrc1 = SourceItem(\"inspection\", \"INS-0121-0189\", \"WELL-0121 non-producing inspection\")\nsrc2 = SourceItem(\"inspection\", \"INS-0121-0200\", \"WELL-0121 non-producing inspection\")\nsrc3 = SourceItem(\"inspection\", \"INS-0121-0201\", \"WELL-0121 non-producing inspection\")\nsrc4 = SourceItem(\"inspection\", \"INS-0121-0202\", \"WELL-0121 non-producing inspection\")\nsrc5 = SourceItem(\"inspection\", \"INS-0121-0203\", \"WELL-0121 non-producing inspection\")\nsrc6 = SourceItem(\"inspection\", \"INS-0121-0205\", \"WELL-0121 non-producing inspection\")\nsrc7 = SourceItem(\"inspection\", \"INS-0121-0206\", \"WELL-0121 non-producing inspection\")\nsrc8 = SourceItem(\"inspection\", \"INS-0107-0194\", \"WELL-0107 non-producing inspection\")\nsrc9 = SourceItem(\"inspection\", \"INS-0107-0195\", \"WELL-0107 non-producing inspection\")\nsrc10 = SourceItem(\"inspection\", \"INS-0107-0196\", \"WELL-0107 non-producing inspection\")\nsrc11 = SourceItem(\"inspection\", \"INS-0107-0197\", \"WELL-0107 non-producing inspection\")\nsrc12 = SourceItem(\"inspection\", \"INS-0107-0198\", \"WELL-0107 non-producing inspection\")\nsrc13 = SourceItem(\"inspection\", \"INS-0107-0199\", \"WELL-0107 non-producing inspection\")\nsrc14 = SourceItem(\"inspection\", \"INS-0138-0195\", \"WELL-0138 non-producing inspection\")\nsrc15 = SourceItem(\"inspection\", \"INS-0138-0196, INS-0138-0200, INS-0138-0201, INS-0138-0206, INS-0138-0207\", \"WELL-0138 non-producing inspections\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "WELL-0121 had 49 days of downtime (T200)",
+          "WELL-0138 had 42 days (T350)",
+          "WELL-0107 had 42 days (T350)"
+        ],
+        "missedFacts": [
+          "The window is 16 Jun to 16 Oct 2026",
+          "The next well, WELL-0119, had 28 days, so it is not in the top three"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "The window is stated as 17 Jun–17 Oct rather than 16 Jun–16 Oct, and WELL-0119 at 28 days is not mentioned; the three downtime values are correct."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 47969,
+      "outputTokens": 777,
+      "costUsd": 0.003648395,
+      "latencyMs": 7788
+    },
+    {
+      "step": {
+        "id": "Q7",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Show on a map every well in Northeast Block 8 with a real spill in the last 90 days.",
+        "expectedFacts": [
+          "The map has exactly 4 wells: WELL-0151, WELL-0165, WELL-0175 and WELL-0186",
+          "WELL-0151: 24 Sep 2026, 4.5 bbl, at 32.12246, -102.18445",
+          "WELL-0165: 30 Jul 2026, 1.2 bbl, at 32.15665, -102.14522",
+          "WELL-0175: 30 Jul 2026, 3.9 bbl, at 32.18020, -102.14790",
+          "WELL-0186: 23 Jul 2026, 0.6 bbl, at 32.17552, -102.17775"
+        ],
+        "expectedVisual": "map"
+      },
+      "threadId": "146350ac-b28a-451e-94eb-d10bd3990637",
+      "answer": "root = Stack([heading, mapCard, sources])\nheading = TextContent(\"Real spills in Northeast Block 8 — last 90 days\", \"large-heavy\")\nmapCard = Card([map])\nmap = GeoMap(points)\npoints = [{lat: 32.12246, lon: -102.18445, label: \"WELL-0151\", detail: \"1 real spill · INS-0151-0201\"}, {lat: 32.15665, lon: -102.14522, label: \"WELL-0165\", detail: \"1 real spill · INS-0165-0194\"}, {lat: 32.1802, lon: -102.1479, label: \"WELL-0175\", detail: \"1 real spill · INS-0175-0193\"}, {lat: 32.17552, lon: -102.17775, label: \"WELL-0186\", detail: \"1 real spill · INS-0186-0097\"}]\nsources = Sources([src1, src2, src3, src4])\nsrc1 = SourceItem(\"inspection\", \"INS-0151-0201\", \"WELL-0151 spill inspection\")\nsrc2 = SourceItem(\"inspection\", \"INS-0165-0194\", \"WELL-0165 spill inspection\")\nsrc3 = SourceItem(\"inspection\", \"INS-0175-0193\", \"WELL-0175 spill inspection\")\nsrc4 = SourceItem(\"inspection\", \"INS-0186-0097\", \"WELL-0186 spill inspection\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "The map has exactly 4 wells: WELL-0151, WELL-0165, WELL-0175 and WELL-0186"
+        ],
+        "missedFacts": [
+          "WELL-0151: 24 Sep 2026, 4.5 bbl, at 32.12246, -102.18445",
+          "WELL-0165: 30 Jul 2026, 1.2 bbl, at 32.15665, -102.14522",
+          "WELL-0175: 30 Jul 2026, 3.9 bbl, at 32.18020, -102.14790",
+          "WELL-0186: 23 Jul 2026, 0.6 bbl, at 32.17552, -102.17775"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "The map shows the 4 correct wells, but spill dates and volumes are missing, so facts 2-5 are incomplete (coordinates match, but dates and bbl are absent)."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 48262,
+      "outputTokens": 440,
+      "costUsd": 0.003497545,
+      "latencyMs": 5778
+    },
+    {
+      "step": {
+        "id": "Q8",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Show a heatmap of 2026 spills by geographic area and month.",
+        "expectedFacts": [
+          "The heatmap covers areas by the months Jan to Oct 2026, with corrected detections removed",
+          "Southwest Block 23 by month Jan to Oct: 4, 3, 3, 6, 3, 4, 4, 3, 3, 2; total 35",
+          "Southwest Block 24 by month Jan to Oct: 7, 4, 5, 6, 5, 5, 3, 1, 5, 2; total 43",
+          "Northeast Block 7 by month Jan to Oct: 5, 3, 2, 4, 6, 6, 2, 4, 4, 1; total 37",
+          "Northeast Block 8 by month Jan to Oct: 4, 4, 4, 3, 2, 4, 4, 0, 1, 0; total 26"
+        ],
+        "expectedVisual": "heatmap"
+      },
+      "threadId": "cb3a9909-839b-487a-a81a-4e5415e187da",
+      "answer": "root = Stack([heading, heatmap, note, sources])\nheading = TextContent(\"2026 spills by geographic area and month\", \"large-heavy\")\nheatmap = Heatmap(areas, months, values)\nnote = TextContent(\"Counts include real spills only; detections removed by correction are excluded. Months with no spills are shown as 0.\")\nsources = Sources([spillSource])\nspillSource = SourceItem(\"inspection\", \"2026 spill records\", \"Real spills grouped by area and inspection month\")\nareas = [\"Northeast Block 7\", \"Northeast Block 8\", \"Southwest Block 23\", \"Southwest Block 24\"]\nmonths = [\"Jan\", \"Feb\", \"Mar\", \"Apr\", \"May\", \"Jun\", \"Jul\", \"Aug\", \"Sep\", \"Oct\"]\nvalues = [[5, 3, 2, 4, 6, 6, 2, 4, 4, 1], [4, 4, 4, 3, 2, 4, 4, 0, 1, 0], [4, 3, 3, 6, 3, 4, 4, 3, 3, 2], [7, 4, 5, 6, 5, 5, 3, 1, 5, 2]]",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The heatmap covers areas by the months Jan to Oct 2026, with corrected detections removed",
+          "Southwest Block 23 by month Jan to Oct: 4, 3, 3, 6, 3, 4, 4, 3, 3, 2; total 35",
+          "Southwest Block 24 by month Jan to Oct: 7, 4, 5, 6, 5, 5, 3, 1, 5, 2; total 43",
+          "Northeast Block 7 by month Jan to Oct: 5, 3, 2, 4, 6, 6, 2, 4, 4, 1; total 37",
+          "Northeast Block 8 by month Jan to Oct: 4, 4, 4, 3, 2, 4, 4, 0, 1, 0; total 26"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 49165,
+      "outputTokens": 361,
+      "costUsd": 0.00355643,
+      "latencyMs": 5808
+    },
+    {
+      "step": {
+        "id": "Q9",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which rules has WELL-0001 broken in the last 12 months, and what is still open?",
+        "expectedFacts": [
+          "There are four breaches, all from the 11 Jun 2026 spill of 6.8 bbl, and USD 5,000 in fines is still open",
+          "SR-01: reported after 41 hours (REG-0001-001) against a 24-hour limit, which led to notice of violation REG-0001-002 with a USD 5,000 fine, still open",
+          "SR-02: contained after about 7 hours against a 4-hour limit, found only in the June repair report",
+          "SR-03: cleanup verification was due by 10 Aug 2026 and is still open (REG-0001-003)",
+          "RC-04: the notice needed a response by 30 Jul 2026 and none is recorded",
+          "Open actions, not counted as breaches: a root-cause analysis is due on the flowline (3 corrective repairs: MNT-0001-028, MNT-0001-029, MNT-0001-032; the October repair report marks it \"Action required\")",
+          "Open action: the planned shut-in from 7 Oct is not yet recorded in the maintenance system, which the T200 manual requires before work starts (note CTX-0001-003)",
+          "The yearly flowline test (RC-02) was done on 7 Mar 2026, so that rule was met"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "ce2709b6-48e6-4097-90e0-c13059791087",
+      "answer": "root = Stack([heading, summary, breachesHeader, breachTable, openActions, annualTest, openFine, sources], \"column\", \"m\")\nheading = TextContent(\"WELL-0001 — rules broken and still open (last 12 months)\", \"large-heavy\")\nsummary = TextContent(\"For 17 Oct 2025–17 Oct 2026, the records show three breached spill-response duties from the 11 Jun 2026 reportable spill, plus an overdue RC-04 response. The 1 Oct 2026 moderate spill’s SR-02 containment was met; it did not require SR-01 or SR-03.\")\nbreachesHeader = InlineHeader(\"Breaches\", \"Breached deadlines are listed separately from actions still open.\")\nbreachTable = Table([protocolCol, limitCol, actualCol, evidenceCol])\nprotocolCol = Col(\"Protocol\", [\"SR-01 — written notice\", \"SR-02 — containment\", \"SR-03 — agency verification\", \"RC-04 — response to notice of violation\"])\nlimitCol = Col(\"Limit\", [\"Within 24 hours of discovery\", \"Within 4 hours of discovery\", \"Verification within 60 days; due 10 Aug 2026\", \"Within 30 days of notice; due 30 Jul 2026\"])\nactualCol = Col(\"Actual\", [\"Filed 41 hours after discovery; breached late\", \"Contained in 7 hours; breached late\", \"Still pending after due date; breached open\", \"No response filed by deadline; breached open\"])\nevidenceCol = Col(\"Evidence\", [\"INS-0001-0185; REG-0001-001; MNT-0001-029 report\", \"INS-0001-0185; MNT-0001-029 report\", \"INS-0001-0185; REG-0001-003; MNT-0001-029 report\", \"REG-0001-002\"])\nopenActions = Callout(\"warning\", \"Still open — not additional breaches\", \"SR-03 agency verification remains open after a site inspection on 14 Jul 2026 reported remediation verification pending (REG-0001-003). RC-04 response to the 30 Jun notice remains unfiled and is already counted above as a breached-open duty. A root-cause analysis is due for the flowline before the next repair closes: 3 corrective repairs in the 12-month window, MNT-0001-028, MNT-0001-029 and MNT-0001-032. This RCA is an open action, not a breach. No open repair was returned for WELL-0001.\")\nannualTest = TextContent(\"RC-02 annual flowline integrity test: met. Repair MNT-0001-026 was completed 7 Mar 2026. The 2 Oct spill repair’s report also says its SR-02 containment was met at about 1.7 hours, within the 4-hour limit.\")\nopenFine = Callout(\"warning\", \"Open fine\", \"REG-0001-002 carries an open fine of USD 5,000.\")\nsources = Sources([srcInspection185, srcInspection201, srcRepair026, srcRepair028, srcRepair029, srcRepair032, srcReg001, srcReg002, srcReg003, srcReport029, srcReport032, srcSr01, srcSr02, srcSr03, srcRc04, srcRc02, srcManual])\nsrcInspection185 = SourceItem(\"inspection\", \"INS-0001-0185\", \"11 Jun 2026 reportable spill discovery\")\nsrcInspection201 = SourceItem(\"inspection\", \"INS-0001-0201\", \"1 Oct 2026 moderate spill discovery\")\nsrcRepair026 = SourceItem(\"repair\", \"MNT-0001-026\", \"2026 annual flowline integrity test\")\nsrcRepair028 = SourceItem(\"repair\", \"MNT-0001-028\", \"Flowline corrective repair in RCA window\")\nsrcRepair029 = SourceItem(\"repair\", \"MNT-0001-029\", \"Flowline corrective repair; June spill\")\nsrcRepair032 = SourceItem(\"repair\", \"MNT-0001-032\", \"Flowline corrective repair; October spill\")\nsrcReg001 = SourceItem(\"regulator_event\", \"REG-0001-001\", \"Late SR-01 spill report filing\")\nsrcReg002 = SourceItem(\"regulator_event\", \"REG-0001-002\", \"Open notice of violation and RC-04 response due\")\nsrcReg003 = SourceItem(\"regulator_event\", \"REG-0001-003\", \"SR-03 site inspection; verification pending\")\nsrcReport029 = SourceItem(\"report\", \"MNT-0001-029\", \"June repair report and spill compliance checks\")\nsrcReport032 = SourceItem(\"report\", \"MNT-0001-032\", \"October repair report and compliance checks\")\nsrcSr01 = SourceItem(\"document\", \"SOP-SR §4 SR-01\", \"Written spill notice deadline\")\nsrcSr02 = SourceItem(\"document\", \"SOP-SR §4 SR-02\", \"Containment limit\")\nsrcSr03 = SourceItem(\"document\", \"SOP-SR §4 SR-03\", \"Agency verification deadline\")\nsrcRc04 = SourceItem(\"document\", \"SOP-RC §2 RC-04\", \"Notice-of-violation response deadline\")\nsrcRc02 = SourceItem(\"document\", \"SOP-RC §2 RC-02\", \"Annual flowline integrity test\")\nsrcManual = SourceItem(\"document\", \"OM-T200 §10\", \"Flowline RCA escalation rule\")",
+      "toolCalls": [
+        "query",
+        "query",
+        "query",
+        "query",
+        "query",
+        "read_report",
+        "read_report",
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "There are four breaches, all from the 11 Jun 2026 spill of 6.8 bbl, and USD 5,000 in fines is still open",
+          "SR-01: reported after 41 hours (REG-0001-001) against a 24-hour limit, which led to notice of violation REG-0001-002 with a USD 5,000 fine, still open",
+          "SR-02: contained after about 7 hours against a 4-hour limit, found only in the June repair report",
+          "SR-03: cleanup verification was due by 10 Aug 2026 and is still open (REG-0001-003)",
+          "RC-04: the notice needed a response by 30 Jul 2026 and none is recorded",
+          "Open actions, not counted as breaches: a root-cause analysis is due on the flowline (3 corrective repairs: MNT-0001-028, MNT-0001-029, MNT-0001-032; the October repair report marks it \"Action required\")",
+          "The yearly flowline test (RC-02) was done on 7 Mar 2026, so that rule was met"
+        ],
+        "missedFacts": [
+          "Open action: the planned shut-in from 7 Oct is not yet recorded in the maintenance system, which the T200 manual requires before work starts (note CTX-0001-003)"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Fact 7 is missing: the planned 7 Oct shut-in not yet in the maintenance system (CTX-0001-003) is not mentioned. Fact 1 omits the 6.8 bbl spill volume but is otherwise stated, so it is counted."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 238012,
+      "outputTokens": 1779,
+      "costUsd": 0.006670070000000001,
+      "latencyMs": 27707
+    },
+    {
+      "step": {
+        "id": "Q10",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "In Southwest Block 24, which spills in the last 90 days were not contained within the SOP time limit?",
+        "expectedFacts": [
+          "Exactly 2 spills exceeded the 4-hour containment limit",
+          "WELL-0082: contained after about 7.1 hours (report MNT-0082-028, inspection INS-0082-0198)",
+          "WELL-0100: contained after about 8.1 hours (report MNT-0100-034, inspection INS-0100-0196)",
+          "The containment time comes from the repair reports"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "141ea260-3af0-47f0-a67e-c69642d855e0",
+      "answer": "root = Stack([title, summary, results, sources])\ntitle = TextContent(\"Southwest Block 24 — spills not contained within the SOP limit\", \"large-heavy\")\nsummary = TextContent(\"In the last 90 days, 2 spills exceeded the SR-02 containment limit of 4 hours.\")\nresults = Table([spillCol, wellCol, dateCol, volumeCol, containmentCol, repairCol])\nspillCol = Col(\"Inspection\", [\"INS-0082-0198\", \"INS-0100-0196\"])\nwellCol = Col(\"Well\", [\"WELL-0082\", \"WELL-0100\"])\ndateCol = Col(\"Discovered\", [\"2026-09-10\", \"2026-09-10\"])\nvolumeCol = Col(\"Spill volume (bbl)\", [0.7, 0.4], \"number\")\ncontainmentCol = Col(\"Containment time (limit 4 h)\", [\"7.1 h — breached late\", \"8.1 h — breached late\"])\nrepairCol = Col(\"Repair report\", [\"MNT-0082-028\", \"MNT-0100-034\"])\nsources = Sources([src1, src2, src3])\nsrc1 = SourceItem(\"inspection\", \"INS-0082-0198\", \"WELL-0082 spill discovered 2026-09-10\")\nsrc2 = SourceItem(\"inspection\", \"INS-0100-0196\", \"WELL-0100 spill discovered 2026-09-10\")\nsrc3 = SourceItem(\"document\", \"SOP-SR §4 SR-02\", \"Containment required within 4 hours of discovery\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "Exactly 2 spills exceeded the 4-hour containment limit",
+          "WELL-0082: contained after about 7.1 hours (report MNT-0082-028, inspection INS-0082-0198)",
+          "WELL-0100: contained after about 8.1 hours (report MNT-0100-034, inspection INS-0100-0196)"
+        ],
+        "missedFacts": [
+          "The containment time comes from the repair reports"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Fact 4 is not stated explicitly: the repair report IDs appear in a column, but the answer never says the containment times come from the repair reports."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 49017,
+      "outputTokens": 470,
+      "costUsd": 0.003564715,
+      "latencyMs": 6667
+    },
+    {
+      "step": {
+        "id": "Q11.1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which 3 wells in Northeast Block 7 had the most downtime in the last 4 months? Show a bar chart.",
+        "expectedFacts": [
+          "WELL-0121 had 49 days of downtime, WELL-0138 had 42 days and WELL-0107 had 42 days"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "c7c0667e-09db-4a1d-892e-181a9c9c6778",
+      "answer": "root = Stack([title, chartCard, sources])\ntitle = TextContent(\"Top 3 wells by downtime — Northeast Block 7\", \"large-heavy\")\nchartCard = Card([chartHeader, chart])\nchartHeader = CardHeader(\"Downtime in the last 4 months\", \"18 Jun–17 Oct 2026; 7 days per inspection that found a well not producing\")\nchart = BarChart(labels, [downtimeSeries], \"grouped\", \"Well\", \"Downtime (days)\")\nlabels = [\"WELL-0121\", \"WELL-0107\", \"WELL-0138\"]\ndowntimeSeries = Series(\"Downtime (days)\", [49, 42, 42])\nsources = Sources([src1, src2, src3, src4, src5, src6, src7, src8, src9, src10, src11, src12, src13, src14, src15, src16, src17, src18, src19])\nsrc1 = SourceItem(\"inspection\", \"INS-0121-0189\", \"WELL-0121 downtime inspection\")\nsrc2 = SourceItem(\"inspection\", \"INS-0121-0200\", \"WELL-0121 downtime inspection\")\nsrc3 = SourceItem(\"inspection\", \"INS-0121-0201\", \"WELL-0121 downtime inspection\")\nsrc4 = SourceItem(\"inspection\", \"INS-0121-0202\", \"WELL-0121 downtime inspection\")\nsrc5 = SourceItem(\"inspection\", \"INS-0121-0203\", \"WELL-0121 downtime inspection\")\nsrc6 = SourceItem(\"inspection\", \"INS-0121-0205\", \"WELL-0121 downtime inspection\")\nsrc7 = SourceItem(\"inspection\", \"INS-0121-0206\", \"WELL-0121 downtime inspection\")\nsrc8 = SourceItem(\"inspection\", \"INS-0107-0194\", \"WELL-0107 downtime inspection\")\nsrc9 = SourceItem(\"inspection\", \"INS-0107-0195\", \"WELL-0107 downtime inspection\")\nsrc10 = SourceItem(\"inspection\", \"INS-0107-0196\", \"WELL-0107 downtime inspection\")\nsrc11 = SourceItem(\"inspection\", \"INS-0107-0197\", \"WELL-0107 downtime inspection\")\nsrc12 = SourceItem(\"inspection\", \"INS-0107-0198\", \"WELL-0107 downtime inspection\")\nsrc13 = SourceItem(\"inspection\", \"INS-0107-0199\", \"WELL-0107 downtime inspection\")\nsrc14 = SourceItem(\"inspection\", \"INS-0138-0195\", \"WELL-0138 downtime inspection\")\nsrc15 = SourceItem(\"inspection\", \"INS-0138-0196\", \"WELL-0138 downtime inspection\")\nsrc16 = SourceItem(\"inspection\", \"INS-0138-0200\", \"WELL-0138 downtime inspection\")\nsrc17 = SourceItem(\"inspection\", \"INS-0138-0201\", \"WELL-0138 downtime inspection\")\nsrc18 = SourceItem(\"inspection\", \"INS-0138-0206\", \"WELL-0138 downtime inspection\")\nsrc19 = SourceItem(\"inspection\", \"INS-0138-0207\", \"WELL-0138 downtime inspection\")",
+      "toolCalls": [
+        "query",
+        "query"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "WELL-0121 had 49 days of downtime, WELL-0138 had 42 days and WELL-0107 had 42 days"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 74414,
+      "outputTokens": 891,
+      "costUsd": 0.00410409,
+      "latencyMs": 9980
+    },
+    {
+      "step": {
+        "id": "Q11.2",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "For the three wells we discussed yesterday, what have repairs cost this year?",
+        "expectedFacts": [
+          "WELL-0121: USD 25,794",
+          "WELL-0138: USD 46,942",
+          "WELL-0107: USD 5,176",
+          "The three wells are the ones from Michael Turner's earlier conversation (WELL-0121, WELL-0138, WELL-0107)"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "4f8d9223-55d0-4a1c-af65-cba01daa2dfb",
+      "answer": "root = Stack([answerCard, sources])\nanswerCard = Card([heading, repairTable, totalNote])\nheading = CardHeader(\"2026 repair costs\", \"The three wells we discussed yesterday in Northeast Block 7\")\nrepairTable = Table([wellCol, countCol, costCol])\nwellCol = Col(\"Well\", [\"WELL-0121\", \"WELL-0107\", \"WELL-0138\"])\ncountCol = Col(\"Repairs\", [7, 6, 10], \"number\")\ncostCol = Col(\"Repair cost (USD)\", [25794, 5176, 46942], \"number\")\ntotalNote = TextContent(\"Costs are based on repairs started from 1 Jan through 17 Oct 2026. Total across the three wells: $77,912.\")\nsources = Sources([src1, src2, src3])\nsrc1 = SourceItem(\"repair\", \"WELL-0121 repairs started 2026\", \"2026 repair costs and count\")\nsrc2 = SourceItem(\"repair\", \"WELL-0107 repairs started 2026\", \"2026 repair costs and count\")\nsrc3 = SourceItem(\"repair\", \"WELL-0138 repairs started 2026\", \"2026 repair costs and count\")",
+      "toolCalls": [
+        "recall_my_conversations",
+        "recall_my_conversations",
+        "query"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "WELL-0121: USD 25,794",
+          "WELL-0138: USD 46,942",
+          "WELL-0107: USD 5,176",
+          "The three wells are the ones from Michael Turner's earlier conversation (WELL-0121, WELL-0138, WELL-0107)"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 104468,
+      "outputTokens": 406,
+      "costUsd": 0.004431269999999999,
+      "latencyMs": 10872
+    },
+    {
+      "step": {
+        "id": "Q12.1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "The 15 Oct reading for WELL-0164 is wrong. The handheld thermal gun used in that inspection was faulty; the field crew re-measured the wellhead at 41.0 °C.",
+        "expectedFacts": [
+          "The correction is recorded against inspection INS-0164-0205",
+          "The original value (24.0 °C) is kept, and the answer notes who corrected it (Michael Turner) and why (faulty thermal gun)",
+          "With 41.0 °C against 19.9 °C air (21.1 °C warmer, above the T200 limit), WELL-0164 is producing oil",
+          "The answer points out that the same inspection has the note \"Pump jack not moving.\" (by Tyler Hughes), which disagrees with the correction, and asks Michael Turner to confirm"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "af3d68f6-5317-477c-8dff-4856f1ba4a51",
+      "answer": "root = Stack([card, conflict, sources])\ncard = Card([header, summary, details, correctedTag])\nheader = CardHeader(\"WELL-0164 — corrected reading\", \"Inspection INS-0164-0205 · 15 Oct 2026 · Northeast Block 8\")\nsummary = Callout(\"success\", \"Now classified as producing\", \"The wellhead reading was corrected from 24.0 °C to 41.0 °C. With ambient at 19.9 °C, the corrected delta is 21.1 °C, above the T200 threshold of 15 °C.\")\ndetails = TextContent(\"Recorded by Tyler Hughes using a manual inspection. Recorded status is active and agrees with the corrected inspection.\")\ncorrectedTag = Tag(\"corrected by Michael Turner\", null, \"sm\", \"info\")\nconflict = Callout(\"warning\", \"Inspector remark conflicts with the corrected result\", \"Tyler Hughes's remark on INS-0164-0205 says: “Pump jack not moving.” The corrected temperature indicates producing, but the remark disagrees. Please confirm the reading and whether the pump jack was moving.\")\nsources = Sources([inspectionSrc, wellSrc, ruleSrc, correctionSrc])\ninspectionSrc = SourceItem(\"inspection\", \"INS-0164-0205\", \"15 Oct inspection, inspector remark and corrected reading\")\nwellSrc = SourceItem(\"document\", \"WELL-0164 metadata\", \"Well type, area and recorded status\")\nruleSrc = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold\")\ncorrectionSrc = SourceItem(\"knowledge\", \"KN-0001\", \"Correction recorded by Michael Turner\")",
+      "toolCalls": [
+        "query",
+        "record_knowledge",
+        "well_snapshot"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "The correction is recorded against inspection INS-0164-0205",
+          "With 41.0 °C against 19.9 °C air (21.1 °C warmer, above the T200 limit), WELL-0164 is producing oil",
+          "The answer points out that the same inspection has the note \"Pump jack not moving.\" (by Tyler Hughes), which disagrees with the correction, and asks Michael Turner to confirm"
+        ],
+        "missedFacts": [
+          "The original value (24.0 °C) is kept, and the answer notes who corrected it (Michael Turner) and why (faulty thermal gun)"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Omits the faulty thermal gun reason for the correction, so fact 2 is incomplete; the confirmation request is not addressed to Michael Turner by name."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 101127,
+      "outputTokens": 550,
+      "costUsd": 0.004281145,
+      "latencyMs": 10177
+    },
+    {
+      "step": {
+        "id": "Q12.2",
+        "user": "Michael Turner",
+        "chat": "continue",
+        "question": "Which wells in Northeast Block 8 are not producing oil right now, and why? Show them in a table.",
+        "expectedFacts": [
+          "Three wells are not producing: WELL-0170, WELL-0172 and WELL-0175",
+          "WELL-0164 is no longer listed, and the answer says why (its 15 Oct reading was corrected to 41.0 °C)"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "af3d68f6-5317-477c-8dff-4856f1ba4a51",
+      "answer": "root = Stack([title, note, table, sourceBlock])\ntitle = TextContent(\"Northeast Block 8 — not producing oil\", \"large-heavy\")\nnote = TextContent(\"Based on each well’s latest inspection. The T200 threshold is 15 °C above ambient. WELL-0172 and WELL-0175 have recorded status “active,” which is out of date because their latest inspections found them not producing.\")\ntable = Table([wellCol, inspectionCol, deltaCol, reasonCol, statusCol])\nwellCol = Col(\"Well\", wells)\ninspectionCol = Col(\"Latest inspection\", inspections)\ndeltaCol = Col(\"Delta / threshold (°C)\", deltas)\nreasonCol = Col(\"Recorded reason for stop\", reasons)\nstatusCol = Col(\"Recorded status\", statuses)\nwells = [\"WELL-0170\", \"WELL-0172\", \"WELL-0175\"]\ninspections = [\"INS-0170-0206 · 15 Oct 2026\", \"INS-0172-0206 · 15 Oct 2026\", \"INS-0175-0204 · 15 Oct 2026\"]\ndeltas = [\"2.9 / 15\", \"5.7 / 15\", \"0.4 / 15\"]\nreasons = [\"Open repair: walking beam bearing wear (MNT-0170-031).\", \"Open repair: flowline corrosion pinhole leak (MNT-0172-028). Inspector remark: “No stroke observed during flight.”\", \"No reason is recorded. Consider a field visit or confirming with Northeast Block 8’s team.\"]\nstatuses = [\"Down (agrees)\", \"Active — out of date\", \"Active — out of date\"]\nsourceBlock = Sources([i1, i2, i3, r1, r2, rule])\ni1 = SourceItem(\"inspection\", \"INS-0170-0206\", \"Latest inspection, WELL-0170\")\ni2 = SourceItem(\"inspection\", \"INS-0172-0206\", \"Latest inspection and inspector remark, WELL-0172\")\ni3 = SourceItem(\"inspection\", \"INS-0175-0204\", \"Latest inspection, WELL-0175\")\nr1 = SourceItem(\"repair\", \"MNT-0170-031\", \"Open pump jack repair: walking beam bearing wear\")\nr2 = SourceItem(\"repair\", \"MNT-0172-028\", \"Open flowline repair: corrosion pinhole leak\")\nrule = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold of 15 °C above ambient\")",
+      "toolCalls": [
+        "query",
+        "query",
+        "well_snapshot",
+        "well_snapshot",
+        "well_snapshot"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "Three wells are not producing: WELL-0170, WELL-0172 and WELL-0175"
+        ],
+        "missedFacts": [
+          "WELL-0164 is no longer listed, and the answer says why (its 15 Oct reading was corrected to 41.0 °C)"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "The table lists WELL-0170, WELL-0172 and WELL-0175, but it never says WELL-0164 was dropped because its 15 Oct reading was corrected to 41.0 °C."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 163980,
+      "outputTokens": 811,
+      "costUsd": 0.00229302,
+      "latencyMs": 17819
+    },
+    {
+      "step": {
+        "id": "Q13",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "The AI estimated the 24 Sep spill at WELL-0151 as 4.5 bbl. The field crew measured 5.4 bbl.",
+        "expectedFacts": [
+          "The corrected volume of 5.4 bbl is recorded against inspection INS-0151-0201, keeping the AI's estimate (4.5 bbl) for reference",
+          "At 5.4 bbl the spill is reportable under the Spill Response SOP; a written notice was due within 24 hours of the 24 Sep 15:30 inspection and none is recorded, so a possible SR-01 breach is flagged",
+          "Repair report MNT-0151-025 classed the spill as \"moderate\" and listed no reporting duty; that was based on the old estimate and no longer holds",
+          "The same report already shows containment took about 6.4 hours, an SR-02 breach",
+          "Agency verification of the clean-up (SR-03) is now due within 60 days, by 23 Nov 2026"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "70726aaa-143d-45db-9c88-b9827b705aaa",
+      "answer": "root = Stack([card, sources])\ncard = Card([header, correction, effect, breach, openAction, conflict])\nheader = CardHeader(\"WELL-0151 spill volume corrected\", \"Inspection INS-0151-0201 · 24 Sep 2026\")\ncorrection = TextContent(\"Recorded your measured volume of 5.4 bbl, replacing the AI estimate of 4.5 bbl. The spill is now classified as reportable, so an SR-01 written notice is required.\")\neffect = TextContent(\"The SR-01 deadline was 25 Sep 2026 at 15:30 UTC. No written notice is recorded; this is a possible SR-01 breach. SR-02 containment was breached late (6.4 hours against the 4-hour limit). SR-03 verification is pending and due by 23 Nov 2026.\")\nbreach = Callout(\"warning\", \"Compliance changed\", \"The volume correction changes the class from moderate to reportable. The repair report MNT-0151-025 states moderate, so its stated class and reporting duties no longer hold.\")\nopenAction = Callout(\"info\", \"Open action — not a breach\", \"Agency verification under SR-03 is pending; due 23 Nov 2026.\")\nconflict = TextContent(\"Conflict to confirm: inspector Ashley Bennett's remark on INS-0151-0201 was “Oil sheen around cellar.” This remark does not address the measured volume. The correction is recorded; please confirm the crew measurement.\")\noriginalTag = Tag(\"4.5 bbl → 5.4 bbl · corrected by Michael Turner\", Icon(\"ruler\", \"tools\"), \"sm\", \"info\")\nsources = Sources([srcInspection, srcKnowledge, srcReport, srcSr01, srcSr02, srcSr03])\nsrcInspection = SourceItem(\"inspection\", \"INS-0151-0201\", \"24 Sep spill inspection\")\nsrcKnowledge = SourceItem(\"knowledge\", \"KN-0002\", \"Measured volume correction\")\nsrcReport = SourceItem(\"report\", \"MNT-0151-025\", \"Repair report; containment time and stated class\")\nsrcSr01 = SourceItem(\"document\", \"SOP-SR §4 SR-01\", \"Written notice requirement\")\nsrcSr02 = SourceItem(\"document\", \"SOP-SR §4 SR-02\", \"Containment limit\")\nsrcSr03 = SourceItem(\"document\", \"SOP-SR §4 SR-03\", \"Agency verification requirement\")",
+      "toolCalls": [
+        "query",
+        "query",
+        "query",
+        "record_knowledge"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The corrected volume of 5.4 bbl is recorded against inspection INS-0151-0201, keeping the AI's estimate (4.5 bbl) for reference",
+          "At 5.4 bbl the spill is reportable under the Spill Response SOP; a written notice was due within 24 hours of the 24 Sep 15:30 inspection and none is recorded, so a possible SR-01 breach is flagged",
+          "Repair report MNT-0151-025 classed the spill as \"moderate\" and listed no reporting duty; that was based on the old estimate and no longer holds",
+          "The same report already shows containment took about 6.4 hours, an SR-02 breach",
+          "Agency verification of the clean-up (SR-03) is now due within 60 days, by 23 Nov 2026"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 127269,
+      "outputTokens": 855,
+      "costUsd": 0.004716035,
+      "latencyMs": 14018
+    },
+    {
+      "step": {
+        "id": "Q14.1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which wells in Northeast Block 7 need a root-cause analysis on their pump jack?",
+        "expectedFacts": [
+          "WELL-0108, WELL-0121 and WELL-0138 need one, each with 3 corrective pump jack repairs in the last 12 months",
+          "The rule comes from the T200 manual section 10 (the T350 manual refers to it)"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "c9474817-2fe9-4d30-9174-172cfeac8f0a",
+      "answer": "root = Stack([header, summary, table, rule, sources])\nheader = CardHeader(\"Pump-jack root-cause analyses due\", \"Northeast Block 7 · corrective repairs in the 12-month window from 17 Oct 2025\")\nsummary = TextContent(\"Three wells meet the RCA threshold: WELL-0108, WELL-0121 and WELL-0138.\")\ntable = Table([wellCol, typeCol, repairCountCol, repairsCol])\nwellCol = Col(\"Well\", [\"WELL-0108\", \"WELL-0121\", \"WELL-0138\"])\ntypeCol = Col(\"Well type\", [\"T350\", \"T200\", \"T350\"])\nrepairCountCol = Col(\"Corrective pump-jack repairs\", [3, 3, 3], \"number\")\nrepairsCol = Col(\"Repairs\", [\"MNT-0108-024, MNT-0108-026, MNT-0108-028\", \"MNT-0121-031, MNT-0121-034, MNT-0121-035\", \"MNT-0138-031, MNT-0138-032, MNT-0138-034\"])\nrule = TextContent(\"The applicable threshold is 3 corrective repairs on the same equipment kind within 12 months; an RCA is due before the next repair is closed. The records identify OM-T200 §10 as the rule source for all three wells.\")\nsources = Sources([well0108, well0121, well0138, ruleSource])\nwell0108 = SourceItem(\"repair\", \"MNT-0108-024, MNT-0108-026, MNT-0108-028\", \"WELL-0108 pump-jack corrective repairs\")\nwell0121 = SourceItem(\"repair\", \"MNT-0121-031, MNT-0121-034, MNT-0121-035\", \"WELL-0121 pump-jack corrective repairs\")\nwell0138 = SourceItem(\"repair\", \"MNT-0138-031, MNT-0138-032, MNT-0138-034\", \"WELL-0138 pump-jack corrective repairs\")\nruleSource = SourceItem(\"document\", \"OM-T200 §10\", \"RCA threshold and 12-month window\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "WELL-0108, WELL-0121 and WELL-0138 need one, each with 3 corrective pump jack repairs in the last 12 months",
+          "The rule comes from the T200 manual section 10 (the T350 manual refers to it)"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 50834,
+      "outputTokens": 594,
+      "costUsd": 0.00376023,
+      "latencyMs": 7176
+    },
+    {
+      "step": {
+        "id": "Q14.2",
+        "user": "Michael Turner",
+        "chat": "continue",
+        "question": "Note for all T350 wells: our team now wants a pump jack root-cause analysis after 2 repairs, not 3.",
+        "expectedFacts": [
+          "The rule is recorded for the T350 well type only, attributed to Michael Turner",
+          "The answer says it overrides the manual's 3-repair threshold for T350 wells"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "c9474817-2fe9-4d30-9174-172cfeac8f0a",
+      "answer": "root = Stack([header, recorded, ruleEffect, table, sources])\nheader = CardHeader(\"Pump-jack root-cause analyses due\", \"Northeast Block 7 · current after the T350 rule update\")\nrecorded = Callout(\"success\", \"Rule recorded\", \"Michael Turner’s team rule sets the T350 pump-jack RCA threshold at 2 corrective repairs, replacing the manual threshold of 3 for T350 wells only. The update made WELL-0120 newly due in Northeast Block 7; no conflicts were reported.\")\nruleEffect = TextContent(\"WELL-0121 is T200, so it remains governed by the manual’s 3-repair threshold. All listed wells have reached their applicable threshold within the 12-month window beginning 17 Oct 2025.\")\ntable = Table([wellCol, typeCol, countCol, thresholdCol, repairCol])\nwellCol = Col(\"Well\", [\"WELL-0108\", \"WELL-0120\", \"WELL-0121\", \"WELL-0138\"])\ntypeCol = Col(\"Well type\", [\"T350\", \"T350\", \"T200\", \"T350\"])\ncountCol = Col(\"Corrective pump-jack repairs\", [3, 2, 3, 3], \"number\")\nthresholdCol = Col(\"RCA threshold\", [\"2 (team rule)\", \"2 (team rule)\", \"3 (manual)\", \"2 (team rule)\"])\nrepairCol = Col(\"Repairs\", [\"MNT-0108-024, MNT-0108-026, MNT-0108-028\", \"MNT-0120-025, MNT-0120-030\", \"MNT-0121-031, MNT-0121-034, MNT-0121-035\", \"MNT-0138-031, MNT-0138-032, MNT-0138-034\"])\nsources = Sources([ruleKnowledge, manual, repair0108, repair0120, repair0121, repair0138])\nruleKnowledge = SourceItem(\"knowledge\", \"KN-0003\", \"Michael Turner’s T350 RCA threshold override\")\nmanual = SourceItem(\"document\", \"OM-T200 §10\", \"Manual RCA threshold and 12-month window; applies to WELL-0121\")\nrepair0108 = SourceItem(\"repair\", \"MNT-0108-024, MNT-0108-026, MNT-0108-028\", \"WELL-0108 corrective pump-jack repairs\")\nrepair0120 = SourceItem(\"repair\", \"MNT-0120-025, MNT-0120-030\", \"WELL-0120 corrective pump-jack repairs\")\nrepair0121 = SourceItem(\"repair\", \"MNT-0121-031, MNT-0121-034, MNT-0121-035\", \"WELL-0121 corrective pump-jack repairs\")\nrepair0138 = SourceItem(\"repair\", \"MNT-0138-031, MNT-0138-032, MNT-0138-034\", \"WELL-0138 corrective pump-jack repairs\")",
+      "toolCalls": [
+        "record_knowledge",
+        "query"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The rule is recorded for the T350 well type only, attributed to Michael Turner",
+          "The answer says it overrides the manual's 3-repair threshold for T350 wells"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 82299,
+      "outputTokens": 837,
+      "costUsd": 0.00155165,
+      "latencyMs": 17640
+    },
+    {
+      "step": {
+        "id": "Q14.3",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which wells in Northeast Block 7 need a root-cause analysis on their pump jack?",
+        "expectedFacts": [
+          "WELL-0108, WELL-0120, WELL-0121 and WELL-0138 need one",
+          "WELL-0120 is a T350 well with 2 repairs, so it is now added",
+          "WELL-0102 also has 2 repairs but is a T200 well, so it is not added",
+          "The answer says this follows Michael Turner's rule, not the manual"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "59586b86-5428-4d21-a087-0b005ad939c3",
+      "answer": "root = Stack([card, sources])\ncard = Card([header, summary, tbl, ruleNote])\nheader = CardHeader(\"Pump jack root-cause analyses due\", \"Northeast Block 7 · 12-month window from 17 Oct 2025\")\nsummary = TextContent(\"Four wells meet their applicable RCA threshold.\")\ntbl = Table([wellCol, typeCol, countCol, thresholdCol, repairsCol])\nwellCol = Col(\"Well\", wells)\ntypeCol = Col(\"Well type\", types)\ncountCol = Col(\"Corrective repairs\", counts, \"number\")\nthresholdCol = Col(\"RCA threshold\", thresholds, \"number\")\nrepairsCol = Col(\"Repair IDs\", repairIds)\nwells = [\"WELL-0108\", \"WELL-0120\", \"WELL-0121\", \"WELL-0138\"]\ntypes = [\"T350\", \"T350\", \"T200\", \"T350\"]\ncounts = [3, 2, 3, 3]\nthresholds = [2, 2, 3, 2]\nrepairIds = [\"MNT-0108-024, MNT-0108-026, MNT-0108-028\", \"MNT-0120-025, MNT-0120-030\", \"MNT-0121-031, MNT-0121-034, MNT-0121-035\", \"MNT-0138-031, MNT-0138-032, MNT-0138-034\"]\nruleNote = TextContent(\"The T350 wells follow Michael Turner’s team rule: pump jack RCA after 2 corrective repairs, replacing the manual threshold of 3 for T350 only. WELL-0121 is T200 and remains governed by OM-T200 §10, so its 3 repairs meet the manual threshold.\")\nsources = Sources([src1, src2, src3, src4, src5, src6, src7, src8, src9, src10, src11, src12, src13])\nsrc1 = SourceItem(\"repair\", \"MNT-0108-024\", \"WELL-0108 pump jack repair\")\nsrc2 = SourceItem(\"repair\", \"MNT-0108-026\", \"WELL-0108 pump jack repair\")\nsrc3 = SourceItem(\"repair\", \"MNT-0108-028\", \"WELL-0108 pump jack repair\")\nsrc4 = SourceItem(\"repair\", \"MNT-0120-025\", \"WELL-0120 pump jack repair\")\nsrc5 = SourceItem(\"repair\", \"MNT-0120-030\", \"WELL-0120 pump jack repair\")\nsrc6 = SourceItem(\"repair\", \"MNT-0121-031\", \"WELL-0121 pump jack repair\")\nsrc7 = SourceItem(\"repair\", \"MNT-0121-034\", \"WELL-0121 pump jack repair\")\nsrc8 = SourceItem(\"repair\", \"MNT-0121-035\", \"WELL-0121 pump jack repair\")\nsrc9 = SourceItem(\"repair\", \"MNT-0138-031\", \"WELL-0138 pump jack repair\")\nsrc10 = SourceItem(\"repair\", \"MNT-0138-032\", \"WELL-0138 pump jack repair\")\nsrc11 = SourceItem(\"repair\", \"MNT-0138-034\", \"WELL-0138 pump jack repair\")\nsrc12 = SourceItem(\"knowledge\", \"KN-0003\", \"Michael Turner’s T350 pump jack RCA rule\")\nsrc13 = SourceItem(\"document\", \"OM-T200 §10\", \"Manual RCA threshold for T200\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "WELL-0108, WELL-0120, WELL-0121 and WELL-0138 need one",
+          "WELL-0120 is a T350 well with 2 repairs, so it is now added",
+          "The answer says this follows Michael Turner's rule, not the manual"
+        ],
+        "missedFacts": [
+          "WELL-0102 also has 2 repairs but is a T200 well, so it is not added"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Fact 3 is missing: the answer never mentions WELL-0102 with 2 repairs as a T200 well that is not added. Facts 1, 2 and 4 are covered, and the table and sources are present."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 51081,
+      "outputTokens": 873,
+      "costUsd": 0.003919335,
+      "latencyMs": 21001
+    },
+    {
+      "step": {
+        "id": "Q15.1",
+        "user": "Jessica Reed",
+        "chat": "new",
+        "question": "Is WELL-0164 producing oil right now?",
+        "expectedFacts": [
+          "Yes, WELL-0164 is producing oil, based on the corrected reading of 41.0 °C",
+          "The answer says the 15 Oct value was corrected by Michael Turner",
+          "The answer mentions the inspector's \"Pump jack not moving.\" note, which disagrees with the correction"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "50a7ab3f-fc2b-42c4-9462-d716d40c6d4b",
+      "answer": "root = Stack([card, sources])\ncard = Card([header, status, readings, remark])\nheader = CardHeader(\"WELL-0164 — producing oil\", \"Latest inspection INS-0164-0205 · 15 Oct 2026\")\nstatus = Callout(\"success\", \"Yes — producing by the temperature rule\", \"The corrected wellhead temperature is 41.0 °C and ambient temperature is 19.9 °C, a 21.1 °C delta. That exceeds the T200 threshold of 15 °C.\")\nreadings = TextContent(\"Wellhead temperature was corrected from 24.0 °C to 41.0 °C by Michael Turner (KN-0001). The inspection was manual, performed by Tyler Hughes.\")\nremark = TextContent(\"Inspector remark: “Pump jack not moving.” This remark conflicts with the temperature-based producing result; it is a remark, not a recorded cause.\")\nsources = Sources([src1, src2, src3])\nsrc1 = SourceItem(\"inspection\", \"INS-0164-0205\", \"Latest inspection and temperature readings\")\nsrc2 = SourceItem(\"knowledge\", \"KN-0001\", \"Wellhead temperature correction by Michael Turner\")\nsrc3 = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold\")",
+      "toolCalls": [
+        "well_snapshot"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "Yes, WELL-0164 is producing oil, based on the corrected reading of 41.0 °C",
+          "The answer says the 15 Oct value was corrected by Michael Turner",
+          "The answer mentions the inspector's \"Pump jack not moving.\" note, which disagrees with the correction"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 46835,
+      "outputTokens": 302,
+      "costUsd": 0.0033507949999999997,
+      "latencyMs": 12542
+    },
+    {
+      "step": {
+        "id": "Q15.2",
+        "user": "Laura Simmons",
+        "chat": "new",
+        "question": "Which spills in Northeast Block 8 in the last 90 days needed a report to the regulator?",
+        "expectedFacts": [
+          "WELL-0151 needed a report, because its volume was corrected to 5.4 bbl",
+          "No written notice is on record for it, so it is flagged as overdue",
+          "No other spill in that period reached 5 bbl"
+        ],
+        "expectedVisual": "table"
+      },
+      "threadId": "008afea0-21d7-442e-8132-9d2111a7d1f6",
+      "answer": "root = Stack([answer, sources])\nanswer = Card([header, result, caveat])\nheader = CardHeader(\"Regulator-reportable spill\", \"Northeast Block 8 · last 90 days through 17 Oct 2026\")\nresult = Table([Col(\"Well\", wells), Col(\"Discovered\", dates), Col(\"Volume (bbl)\", volumes, \"number\"), Col(\"Class\", classes), Col(\"SR-01 status\", statuses)])\nwells = [\"WELL-0151\"]\ndates = [\"24 Sep 2026\"]\nvolumes = [5.4]\nclasses = [\"Reportable\"]\nstatuses = [\"Breach open — no written notice recorded\"]\ncaveat = TextContent(\"This spill required a written regulator notice within 24 hours of discovery. The deadline has passed, and no report event is recorded; check whether notice was sent outside the records.\")\nsources = Sources([spillSrc, protocolSrc])\nspillSrc = SourceItem(\"inspection\", \"INS-0151-0201\", \"Spill discovery and effective volume\")\nprotocolSrc = SourceItem(\"document\", \"SOP-SR §4 SR-01\", \"Written notice requirement and deadline\")",
+      "toolCalls": [
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "No written notice is on record for it, so it is flagged as overdue"
+        ],
+        "missedFacts": [
+          "WELL-0151 needed a report, because its volume was corrected to 5.4 bbl",
+          "No other spill in that period reached 5 bbl"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Names WELL-0151 at 5.4 bbl and flags the missing written notice as overdue, but never says the volume was corrected, and never states that no other spill reached 5 bbl."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 46439,
+      "outputTokens": 352,
+      "costUsd": 0.003324685,
+      "latencyMs": 11972
+    },
+    {
+      "step": {
+        "id": "Q16.1",
+        "user": "Jake Morales",
+        "chat": "new",
+        "question": "FYI for everyone: WELL-0007 will be shut in from 17 Oct for a 10-day planned workover.",
+        "expectedFacts": [
+          "The note is recorded for WELL-0007 as a planned shut-in from 17 Oct for 10 days, attributed to Jake Morales"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "ac5e41d1-e918-4322-a91c-98cdc840efff",
+      "answer": "root = Stack([message, sources])\nmessage = Card([header, note, confirmation])\nheader = CardHeader(\"Shared note recorded\", \"WELL-0007\")\nnote = TextContent(\"Jake Morales shared that WELL-0007 will be shut in from 17 Oct 2026 for a 10-day planned workover. The note is recorded as accepted and applies from 17 Oct through 27 Oct 2026.\")\nconfirmation = Callout(\"success\", \"No conflicts reported\", \"The note is recorded for everyone.\")\nsources = Sources([knowledge])\nknowledge = SourceItem(\"knowledge\", \"KN-0004\", \"Jake Morales’s shared planned-workover note\")",
+      "toolCalls": [
+        "record_knowledge"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The note is recorded for WELL-0007 as a planned shut-in from 17 Oct for 10 days, attributed to Jake Morales"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 46360,
+      "outputTokens": 217,
+      "costUsd": 0.00324708,
+      "latencyMs": 10924
+    },
+    {
+      "step": {
+        "id": "Q16.2",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Is any downtime planned for WELL-0007?",
+        "expectedFacts": [
+          "Yes, downtime is planned for WELL-0007 from 17 Oct for about 10 days",
+          "The answer attributes it to Jake Morales"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "bb459a17-6e7a-4b32-9990-5f2ecc9e100d",
+      "answer": "root = Stack([card, sources])\ncard = Card([header, planned, state])\nheader = CardHeader(\"WELL-0007 — planned downtime\", \"A 10-day planned workover is recorded for 17–27 Oct 2026.\")\nplanned = Callout(\"info\", \"Yes — a shut-in is planned\", \"Jake Morales shared that WELL-0007 will be shut in from 17 Oct for a 10-day planned workover. This note is valid through 27 Oct 2026. No open repair is currently recorded for the well.\")\nstate = TextContent(\"Latest inspection INS-0007-0203, on 15 Oct 2026, found WELL-0007 producing: wellhead 50.6 °C, ambient 20.7 °C, delta 29.9 °C against the T350 threshold of 20 °C. The planned shut-in is noted, but it is not reflected in open repairs.\")\nsources = Sources([noteSrc, inspSrc, metaSrc, ruleSrc])\nnoteSrc = SourceItem(\"knowledge\", \"KN-0004\", \"Planned workover note by Jake Morales\")\ninspSrc = SourceItem(\"inspection\", \"INS-0007-0203\", \"Latest inspection and producing reading\")\nmetaSrc = SourceItem(\"document\", \"WELL-0007 metadata\", \"Well type and area\")\nruleSrc = SourceItem(\"document\", \"OM-T350 §3\", \"T350 producing threshold\")",
+      "toolCalls": [
+        "well_snapshot"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "Yes, downtime is planned for WELL-0007 from 17 Oct for about 10 days",
+          "The answer attributes it to Jake Morales"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 50885,
+      "outputTokens": 332,
+      "costUsd": 0.0036254849999999995,
+      "latencyMs": 6835
+    },
+    {
+      "step": {
+        "id": "Q16.3",
+        "user": "Jessica Reed",
+        "chat": "new",
+        "question": "For the three wells we discussed yesterday, what have repairs cost this year?",
+        "expectedFacts": [
+          "The copilot says it has no such earlier conversation with Jessica Reed",
+          "It does not use Michael Turner's history: it gives no repair costs for WELL-0121, WELL-0138 or WELL-0107"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "c01c7c30-433d-44ec-a2d9-6befaa8879f6",
+      "answer": "I found only one well in our earlier conversation with you: WELL-0164. I can give its repair cost, but I can’t identify the other two wells from that conversation.root = Stack([summary, sources])\nsummary = Card([header, detail])\nheader = CardHeader(\"Repair costs this year\", \"Year to date through 17 Oct 2026\")\ndetail = TextContent(\"I found only one well in our earlier conversation: WELL-0164. Its repairs cost **$15,186** across 5 repairs this year. I couldn’t identify the other two wells from that conversation—please tell me their IDs and I’ll total all three.\")\nsources = Sources([repair1, repair2, repair3, repair4, repair5])\nrepair1 = SourceItem(\"repair\", \"MNT-0164-023\", \"WELL-0164 repair cost\")\nrepair2 = SourceItem(\"repair\", \"MNT-0164-024\", \"WELL-0164 repair cost\")\nrepair3 = SourceItem(\"repair\", \"MNT-0164-025\", \"WELL-0164 repair cost\")\nrepair4 = SourceItem(\"repair\", \"MNT-0164-026\", \"WELL-0164 repair cost\")\nrepair5 = SourceItem(\"repair\", \"MNT-0164-027\", \"WELL-0164 repair cost\")",
+      "toolCalls": [
+        "recall_my_conversations",
+        "query",
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "It does not use Michael Turner's history: it gives no repair costs for WELL-0121, WELL-0138 or WELL-0107"
+        ],
+        "missedFacts": [
+          "The copilot says it has no such earlier conversation with Jessica Reed"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Wrongly claims an earlier conversation involving WELL-0164 and gives its repair cost, instead of saying there is no prior conversation; it does avoid Michael Turner's wells."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 93908,
+      "outputTokens": 445,
+      "costUsd": 0.0038919550000000003,
+      "latencyMs": 11307
+    },
+    {
+      "step": {
+        "id": "Q17.1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "WELL-0175 has been shut in for planned work since 14 Oct.",
+        "expectedFacts": [
+          "The note is recorded for WELL-0175 as a planned shut-in since 14 Oct, attributed to Michael Turner"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "12c3fbe5-385d-4b0f-9dc6-40356c47b482",
+      "answer": "root = Stack([confirmation, marker, sources])\nconfirmation = Callout(\"success\", \"Planned shut-in recorded\", \"Recorded your note that WELL-0175 has been shut in for planned work since 14 Oct 2026. The note is accepted; no conflicting evidence was returned.\")\nmarker = Tag(\"Shared note · Michael Turner · since 14 Oct 2026\", null, \"sm\", \"info\")\nsources = Sources([noteSource])\nnoteSource = SourceItem(\"knowledge\", \"KN-0005\", \"Michael Turner's planned shut-in note for WELL-0175\")",
+      "toolCalls": [
+        "record_knowledge"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The note is recorded for WELL-0175 as a planned shut-in since 14 Oct, attributed to Michael Turner"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 50641,
+      "outputTokens": 186,
+      "costUsd": 0.0035196850000000003,
+      "latencyMs": 4608
+    },
+    {
+      "step": {
+        "id": "Q17.2",
+        "user": "Tyler Hughes",
+        "chat": "new",
+        "question": "WELL-0175 is running fine.",
+        "expectedFacts": [
+          "The 15 Oct inspection (by Jessica Reed) shows the wellhead only 0.4 °C above the air, so the well is not producing oil",
+          "That matches Michael Turner's note, not Tyler Hughes's claim",
+          "Both statements are kept on record, Tyler Hughes's is marked unconfirmed, and the answer asks for confirmation"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "b161a986-11b2-465d-aa5b-6e8863e528ef",
+      "answer": "root = Stack([card, sources])\ncard = Card([header, claimTag, verdict, details, note])\nheader = CardHeader(\"WELL-0175 — claim recorded as unconfirmed\", \"Latest inspection: 15 Oct 2026\")\nclaimTag = Tag(\"unconfirmed claim — Tyler Hughes\", null, \"sm\", \"warning\")\nverdict = Callout(\"warning\", \"Latest inspection does not support “running fine”\", \"Inspection INS-0175-0204 found the wellhead 0.4 °C above ambient (24.3 °C vs 23.9 °C), below the T200 producing threshold of 15 °C. Your claim is recorded as unconfirmed; please confirm or clarify.\")\ndetails = TextContent(\"Inspected by drone by Jessica Reed. The system's recorded status is active, but it is out of date because it disagrees with the latest inspection. No open repairs are recorded.\")\nnote = TextContent(\"A valid shared note from Michael Turner says WELL-0175 has been shut in for planned work since 14 Oct. This conflicts with your claim that it is running fine; please confirm the well's current situation.\")\nsources = Sources([src1, src2, src3, src4, src5])\nsrc1 = SourceItem(\"inspection\", \"INS-0175-0204\", \"Latest inspection, 15 Oct 2026\")\nsrc2 = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold\")\nsrc3 = SourceItem(\"document\", \"WELL-0175 metadata\", \"Recorded status, well type, area and repairs\")\nsrc4 = SourceItem(\"knowledge\", \"KN-0006\", \"Tyler Hughes's unconfirmed producing claim\")\nsrc5 = SourceItem(\"knowledge\", \"KN-0005\", \"Michael Turner's planned shut-in note\")",
+      "toolCalls": [
+        "well_snapshot",
+        "record_knowledge",
+        "record_knowledge"
+      ],
+      "grade": {
+        "pass": true,
+        "matchedFacts": [
+          "The 15 Oct inspection (by Jessica Reed) shows the wellhead only 0.4 °C above the air, so the well is not producing oil",
+          "That matches Michael Turner's note, not Tyler Hughes's claim",
+          "Both statements are kept on record, Tyler Hughes's is marked unconfirmed, and the answer asks for confirmation"
+        ],
+        "missedFacts": [],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "ok"
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 94221,
+      "outputTokens": 528,
+      "costUsd": 0.0039539499999999995,
+      "latencyMs": 10431
+    },
+    {
+      "step": {
+        "id": "Q17.3",
+        "user": "Jake Morales",
+        "chat": "new",
+        "question": "WELL-0001 is back online since 14 Oct.",
+        "expectedFacts": [
+          "The 15 Oct inspection shows WELL-0001 not producing oil",
+          "Note CTX-0001-003 expects a return around 20 Oct",
+          "The claim is recorded as unconfirmed"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "9a774554-e087-427f-b64d-dcecbd86a275",
+      "answer": "root = Stack([summary, finding, conflict, sources])\nsummary = TextContent(\"Recorded your claim that WELL-0001 has been back online since 14 Oct 2026. It is unconfirmed because the latest inspection indicates the well was not producing.\")\nfinding = Card([header, details])\nheader = CardHeader(\"Latest inspection: not producing\", \"WELL-0001 · INS-0001-0203 · 15 Oct 2026\")\ndetails = TextContent(\"Ryan Brooks recorded the wellhead 3.2 °C above ambient, below the 15 °C producing threshold for this well. Inspector’s remark: “Pump jack not moving.”\")\nconflict = Callout(\"warning\", \"Unconfirmed claim — Jake Morales\", \"Your claim conflicts with the latest inspection and Ryan Brooks’s remark. Please confirm whether WELL-0001 is now producing.\")\nsources = Sources([inspectionSrc, claimSrc, manualSrc])\ninspectionSrc = SourceItem(\"inspection\", \"INS-0001-0203\", \"Latest inspection, 15 Oct 2026\")\nclaimSrc = SourceItem(\"knowledge\", \"KN-0008\", \"Jake Morales’s claim, valid from 14 Oct 2026\")\nmanualSrc = SourceItem(\"document\", \"OM-T200 §9.3\", \"T200 producing threshold\")\n",
+      "toolCalls": [
+        "query",
+        "record_knowledge"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "The 15 Oct inspection shows WELL-0001 not producing oil",
+          "The claim is recorded as unconfirmed"
+        ],
+        "missedFacts": [
+          "Note CTX-0001-003 expects a return around 20 Oct"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "The answer states that the 15 Oct inspection shows the well not producing and that the claim is unconfirmed, but it omits note CTX-0001-003 and its expected return around 20 Oct."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 70264,
+      "outputTokens": 405,
+      "costUsd": 0.003625815,
+      "latencyMs": 7755
+    },
+    {
+      "step": {
+        "id": "Q18",
+        "user": "Laura Simmons",
+        "chat": "new",
+        "question": "Was the 20 Aug spill at WELL-0101 real oil?",
+        "expectedFacts": [
+          "Yes, the detection stands: the AI flagged a 1.0 bbl spill at inspection INS-0101-0197 (\"Oil sheen around cellar\")",
+          "Ryan Brooks thought it produced water (CTX-0101-002), but Chris Dalton (HSE) sampled the stain and confirmed crude (CTX-0101-003); the answer shows the disagreement and both sources",
+          "Neither note is a formal correction, and a spill repair (MNT-0101-029) was done"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "d8553542-c108-4af1-b8c6-062d5d1eda8f",
+      "answer": "root = Stack([answer, statusTag, evidence, sources])\nanswer = TextContent(\"The record treats the 20 Aug 2026 detection at WELL-0101 as a real spill (moderate, 1 bbl), and the inspector noted an oil sheen around the cellar. However, the inspection is disputed, so the records do not establish an uncontested answer about whether it was crude oil.\")\nstatusTag = Tag(\"disputed\", null, \"sm\", \"warning\")\nevidence = TextContent(\"Ryan Brooks wrote, “I think this was only produced water, not crude” (CTX-0101-002). Chris Dalton wrote, “sampled the stain, it is crude oil. The detection stands” (CTX-0101-003). Neither note is a formal correction; the detection still counts as a spill unless corrected. Please confirm whether a formal correction is needed.\")\nsources = Sources([srcInspection, srcRyan, srcChris])\nsrcInspection = SourceItem(\"inspection\", \"INS-0101-0197\", \"20 Aug 2026 inspection; spill detection and inspector remark\")\nsrcRyan = SourceItem(\"note\", \"CTX-0101-002\", \"Ryan Brooks’s disputed note\")\nsrcChris = SourceItem(\"note\", \"CTX-0101-003\", \"Chris Dalton’s disputed note\")",
+      "toolCalls": [
+        "query",
+        "query"
+      ],
+      "grade": {
+        "pass": false,
+        "matchedFacts": [
+          "Yes, the detection stands: the AI flagged a 1.0 bbl spill at inspection INS-0101-0197 (\"Oil sheen around cellar\")",
+          "Ryan Brooks thought it produced water (CTX-0101-002), but Chris Dalton (HSE) sampled the stain and confirmed crude (CTX-0101-003); the answer shows the disagreement and both sources"
+        ],
+        "missedFacts": [
+          "Neither note is a formal correction, and a spill repair (MNT-0101-029) was done"
+        ],
+        "sourcesCited": true,
+        "visualMatches": true,
+        "comment": "Facts 1 and 2 are covered, though the answer hedges the conclusion as 'disputed' and does not name Chris Dalton as HSE. It omits the spill repair MNT-0101-029 (fact 3), though it does say neither note is a formal correction."
+      },
+      "model": "openai/gpt-6-luna",
+      "inputTokens": 70440,
+      "outputTokens": 448,
+      "costUsd": 0.0036618400000000004,
+      "latencyMs": 9196
+    }
+  ]
+}

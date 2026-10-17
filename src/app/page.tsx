@@ -11,7 +11,7 @@ import { type ModelCatalog, MODEL_HEADER } from "@/lib/models";
 import { starterQuestions } from "@/lib/chat/starters";
 import { usageAssistantMessage } from "./assistant-message";
 import { CopilotToolTrace } from "./tool-trace";
-import { copilotLibrary } from "@/lib/openui/library";
+import { copilotLibrary } from "@/lib/openui/app-library";
 
 interface FleetUser {
   userId: string;
@@ -27,7 +27,7 @@ const roleLabel = (role: string) => role.replaceAll("_", " ");
  * The chat for one user: every request carries their ID, so the sidebar and the memory are theirs alone.
  * It also carries the picked model, which only a new conversation takes: an existing one keeps its own.
  */
-function Chat({ userId, role, modelId }: { userId: string; role: string; modelId: string }) {
+function Chat({ userId, userName, role, modelId }: { userId: string; userName: string; role: string; modelId: string }) {
   const mode = useSystemThemeMode();
   const { llm, storage, headers, AssistantMessage } = useMemo(() => {
     // Both adapters read this object on every request, so the model can change under a live chat.
@@ -42,8 +42,10 @@ function Chat({ userId, role, modelId }: { userId: string; role: string; modelId
         headers,
       }),
       storage: restStorage({ baseUrl: "/api/threads", headers }),
-      AssistantMessage: usageAssistantMessage(headers),
+      AssistantMessage: usageAssistantMessage(headers, `${userName} (${roleLabel(role)})`),
     };
+    // userName and role belong to userId; the chat remounts when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
   useEffect(() => {
     headers[MODEL_HEADER] = modelId;
@@ -209,7 +211,13 @@ export default function Home() {
       </header>
       <main className="copilot-main min-h-0 flex-1">
         {userId && modelId ? (
-          <Chat key={userId} userId={userId} role={users.find((u) => u.userId === userId)?.role ?? ""} modelId={modelId} />
+          <Chat
+            key={userId}
+            userId={userId}
+            userName={users.find((u) => u.userId === userId)?.name ?? userId}
+            role={users.find((u) => u.userId === userId)?.role ?? ""}
+            modelId={modelId}
+          />
         ) : (
           <Notice loadError={loadError} loading={users.length === 0 || !modelId} />
         )}

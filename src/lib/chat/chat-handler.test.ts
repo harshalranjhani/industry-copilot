@@ -16,7 +16,7 @@ import { pingTool } from "@/lib/agent/tools";
 import { type ConversationStore, openConversationStore } from "@/lib/conversations/store";
 import { USER_HEADER } from "@/lib/conversations/identity";
 import { MODEL_HEADER } from "@/lib/models";
-import { copilotLibrary } from "@/lib/openui/library";
+import { promptLibrary as copilotLibrary } from "@/lib/openui/library";
 import { createChatHandler } from "./chat-handler";
 import { copilotStreamAdapter } from "./stream-adapter";
 
