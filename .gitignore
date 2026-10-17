@@ -12,5 +12,3 @@ dist/
 flytbase-ahc-swe-asset-intelligence-dataset/
 test-data/
 
-# local spec + tickets
-.scratch/
