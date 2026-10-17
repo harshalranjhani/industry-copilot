@@ -52,8 +52,11 @@ interface ChatChunk {
   usage?: { model: string; inputTokens: number; outputTokens: number; costUsd: number; latencyMs: number };
 }
 
-/** A failed answer the chat route turns into an OpenUI error callout, e.g. a model outage. */
-const ERROR_NOTICE = /Callout\("error", "([^"]*)", "((?:[^"\\]|\\.)*)"\)/;
+/**
+ * A failed answer the chat route turns into an OpenUI error callout, e.g. a model outage.
+ * Matched by the route's own titles: an answer may use an error callout itself (a breached SOP duty).
+ */
+const ERROR_NOTICE = /Callout\("error", "(Model error|Agent error)", "((?:[^"\\]|\\.)*)"\)/;
 
 /** Posts one question to the chat route and collects the streamed answer. */
 async function ask(

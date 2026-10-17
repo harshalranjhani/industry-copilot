@@ -10,11 +10,13 @@ import { readDataConfig } from "../lib/data/config";
 import { openFleet } from "../lib/data/fleet";
 import { renderEvalsMarkdown } from "../lib/evals/report";
 import { runEvals } from "../lib/evals/runner";
+import { HISTORY_DIR, historyFileName } from "../lib/evals/runs";
 import { loadScenarios } from "../lib/evals/scenarios";
 import { isAllowedModel } from "../lib/models";
 
 // `pnpm eval [scenario-file] [--model <id>] [--grader <id>] [--results <file>] [--report <file>]`
-// Replays the scenarios through the real copilot and writes a results file and EVALS.md.
+// Replays the scenarios through the real copilot and writes a results file and EVALS.md,
+// plus a copy of the results under evals/history/ that later runs never overwrite.
 // Run it with `--conditions react-server` (the package script does) so `server-only` imports load outside Next.
 
 const GRADER_DEFAULT = "anthropic/claude-sonnet-5.5";
@@ -86,11 +88,14 @@ async function main() {
   });
   fleet.close();
 
-  for (const path of [args.resultsPath, args.reportPath]) mkdirSync(dirname(path), { recursive: true });
+  const historyPath = resolve("evals", HISTORY_DIR, historyFileName(run));
+  for (const path of [args.resultsPath, args.reportPath, historyPath]) mkdirSync(dirname(path), { recursive: true });
   writeFileSync(args.resultsPath, `${JSON.stringify(run, null, 2)}\n`);
   writeFileSync(args.reportPath, `${renderEvalsMarkdown(run)}\n`);
+  // A run whose results already go to the history folder needs no second copy.
+  if (dirname(args.resultsPath) !== dirname(historyPath)) writeFileSync(historyPath, `${JSON.stringify(run, null, 2)}\n`);
   for (const r of run.steps) console.log(`${r.grade.pass ? "pass" : "FAIL"}  ${r.step.id}  ${r.grade.matchedFacts.length}/${r.step.expectedFacts.length} facts`);
-  console.log(`Passed ${run.passed} of ${run.total}. Wrote ${args.resultsPath} and ${args.reportPath}`);
+  console.log(`Passed ${run.passed} of ${run.total}. Wrote ${args.resultsPath} and ${args.reportPath}; history in evals/${HISTORY_DIR}/`);
 }
 
 main().catch((err) => {

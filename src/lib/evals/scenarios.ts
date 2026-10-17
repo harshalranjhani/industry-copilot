@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 
 /** The visual a question asks for, or the one that fits its answer; "none" when no visual is needed. */
-export const EXPECTED_VISUALS = ["none", "card", "table", "line_chart", "bar_chart", "map", "heatmap"] as const;
+export const EXPECTED_VISUALS = [
+  "none",
+  "card",
+  "table",
+  "line_chart",
+  "area_chart",
+  "bar_chart",
+  "scatter_chart",
+  "timeline",
+  "map",
+  "heatmap",
+] as const;
 export type ExpectedVisual = (typeof EXPECTED_VISUALS)[number];
 
 /** Whether a step opens a new chat or carries on the user's most recent one. */

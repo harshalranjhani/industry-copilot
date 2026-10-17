@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toHeatmapData, toMapPoints } from "./visuals";
+import { expandRamp, styleMapPins, toHeatmapData, toMapOptions, toMapPoints, toPalette, toPlotSpec } from "./visuals";
 
 describe("toMapPoints", () => {
   it("keeps complete points and drops half-streamed or invalid ones", () => {
@@ -56,5 +56,88 @@ describe("toHeatmapData", () => {
   it("returns null until there is at least one row and one column", () => {
     expect(toHeatmapData({ rows: undefined, columns: ["x"], values: [] })).toBeNull();
     expect(toHeatmapData({ rows: ["A"], columns: [], values: [] })).toBeNull();
+  });
+});
+
+describe("map styling", () => {
+  it("keeps valid pin colours, groups and sizes and drops unsafe ones", () => {
+    const [a, b] = toMapPoints([
+      { lat: 1, lon: 2, label: "A", color: "#d62828", group: "Not producing", size: 12 },
+      { lat: 1, lon: 2, label: "B", color: "url(javascript:x)", group: "", size: 400 },
+    ]);
+    expect(a).toEqual({ lat: 1, lon: 2, label: "A", color: "#d62828", group: "Not producing", size: 12 });
+    expect(b).toEqual({ lat: 1, lon: 2, label: "B" });
+  });
+
+  it("reads only known map options", () => {
+    expect(toMapOptions({ basemap: "dark", colorBy: "group", palette: ["red", "bad()"], showLabels: true, extra: 1 })).toEqual({
+      basemap: "dark",
+      colorBy: "group",
+      palette: ["red"],
+      showLabels: true,
+    });
+    expect(toMapOptions({ basemap: "moon" })).toEqual({});
+  });
+
+  it("colours pins by group with a legend, letting an explicit colour name the group's swatch", () => {
+    const points = toMapPoints([
+      { lat: 1, lon: 1, label: "A", group: "Not producing", color: "red" },
+      { lat: 1, lon: 1, label: "B", group: "Producing" },
+      { lat: 1, lon: 1, label: "C", group: "Not producing", color: "red" },
+    ]);
+    const { pins, legend } = styleMapPins(points, { palette: ["green"], legendTitle: "Status" });
+    expect(pins.map((p) => p.color)).toEqual(["red", "green", "red"]);
+    expect(legend).toEqual({ title: "Status", items: [{ label: "Not producing", color: "red" }, { label: "Producing", color: "green" }] });
+  });
+
+  it("colours pins along a ramp by value", () => {
+    const points = toMapPoints([
+      { lat: 1, lon: 1, label: "A", value: 0 },
+      { lat: 1, lon: 1, label: "B", value: 10 },
+      { lat: 1, lon: 1, label: "C", value: 5 },
+    ]);
+    const { pins, legend } = styleMapPins(points, { colorBy: "value", palette: ["#000000", "#ffffff"] });
+    expect(pins.map((p) => p.color)).toEqual(["#000000", "#ffffff", "#808080"]);
+    expect(legend?.ramp).toEqual({ colors: ["#000000", "#ffffff"], min: 0, max: 10 });
+  });
+
+  it("leaves unstyled pins to the theme", () => {
+    expect(styleMapPins(toMapPoints([{ lat: 1, lon: 1, label: "A" }]), {})).toEqual({ pins: [{ radius: 8, color: undefined }] });
+  });
+});
+
+describe("heatmap palette", () => {
+  it("keeps the valid colours given, one or more", () => {
+    expect(toPalette(["#fff5f0", "bad()", "#cb181d"])).toEqual(["#fff5f0", "#cb181d"]);
+    expect(toPalette("red")).toEqual(["red"]);
+    expect(toPalette([])).toBeUndefined();
+  });
+
+  it("expands two stops into a smooth ramp, so the grid isn't two-tone", () => {
+    const ramp = expandRamp(["#ffffff", "#ff0000"], 5);
+    expect(ramp).toEqual(["#ffffff", "#ffbfbf", "#ff8080", "#ff4040", "#ff0000"]);
+  });
+
+  it("ramps a single colour up from a pale tint of it", () => {
+    const ramp = expandRamp(["#ff0000"], 3, "#ffffff");
+    expect(ramp[0]).toBe("#ffebeb");
+    expect(ramp[2]).toBe("#ff0000");
+  });
+});
+
+describe("toPlotSpec", () => {
+  it("waits until the spec has something to draw", () => {
+    expect(toPlotSpec(undefined)).toBeNull();
+    expect(toPlotSpec({ data: { values: [] } })).toBeNull();
+  });
+
+  it("removes every url so a plot never fetches", () => {
+    const spec = toPlotSpec({
+      $schema: "https://vega.github.io/schema/vega-lite/v6.json",
+      data: { url: "https://evil.example/data.json" },
+      layer: [{ mark: "image", data: { url: "x" }, encoding: { url: { field: "u" } } }],
+    });
+    expect(JSON.stringify(spec)).not.toContain("url");
+    expect(JSON.stringify(spec)).not.toContain("$schema");
   });
 });

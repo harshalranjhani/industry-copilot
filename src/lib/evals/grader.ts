@@ -24,16 +24,19 @@ const VISUAL_NAMES: Record<ExpectedVisual, string> = {
   none: "no particular visual is required",
   card: "a card (Card)",
   table: "a table (Table)",
-  line_chart: "a line chart (LineChart)",
-  bar_chart: "a bar chart (BarChart)",
+  line_chart: "a line chart (LineChart, or a Plot whose spec draws lines)",
+  area_chart: "an area chart (AreaChart, or a Plot whose spec draws areas)",
+  bar_chart: "a bar chart (BarChart, HorizontalBarChart, or a Plot whose spec draws bars)",
+  scatter_chart: "a scatter plot (ScatterChart, or a Plot whose spec draws points against two quantities)",
+  timeline: "a timeline or Gantt chart (a Plot with bars from a start date to an end date)",
   map: "a map (GeoMap)",
-  heatmap: "a heatmap (Heatmap)",
+  heatmap: "a heatmap (Heatmap, or a Plot whose spec draws rect cells)",
 };
 
-const SYSTEM_PROMPT = `You grade answers from an oil-field asset copilot against what a correct answer must say. The answer is written in OpenUI Lang: components such as Card, Table, LineChart, BarChart, GeoMap, Heatmap, TextContent, Callout and Sources.
+const SYSTEM_PROMPT = `You grade answers from an oil-field asset copilot against what a correct answer must say. The answer is written in OpenUI Lang: components such as Card, Table, LineChart, BarChart, GeoMap, Heatmap, Plot, TextContent, Callout and Sources. Plot holds a Vega-Lite spec: read its marks, encodings, colour scales, layers, transforms and data values. GeoMap pins carry color, group and size, and its options set the basemap, colouring, labels and legend.
 
 Judge three things:
-1. Facts: which of the numbered expected facts the answer states correctly. Numbers, names, IDs and dates must match; wording may differ. A fact counts when the answer's text or its chart/table data carries it. A contradicted or missing fact does not count.
+1. Facts: which of the numbered expected facts the answer states correctly. Numbers, names, IDs and dates must match; wording may differ. A fact counts when the answer's text or its chart/table data carries it. A fact about how a visual looks (a colour, orientation, mark, dashed or reference line, basemap, labels) counts when the visual's spec or options do it; colour names and equivalent hex codes both match. A visual fact that lists several properties (for example colouring, sizing and labels) counts only when the spec or options set every one of them; a property the text claims but the spec or options do not set does not count. A contradicted or missing fact does not count.
 2. Evidence: whether the answer cites the records and documents it used (a Sources component, or record IDs and document references in the text).
 3. Visual: whether the answer shows the expected visual. When none is required, answer true.
 

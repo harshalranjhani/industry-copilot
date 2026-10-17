@@ -101,3 +101,19 @@ describe("the 18 example questions", () => {
     expect(visualOf("Q8")).toBe("heatmap");
   });
 });
+
+describe("the complex scenario file", () => {
+  const { steps } = loadScenarios("evals/complex-questions.json");
+
+  it("loads, and continues chats only after the same user's earlier step", () => {
+    expect(steps.length).toBeGreaterThan(15);
+    expect(steps.filter((s) => s.chat === "continue").map((s) => s.id)).toEqual(["P1.3", "P2.2", "K1.2", "H2", "U2"]);
+  });
+
+  it("saves a preference before the steps that rely on it", () => {
+    const ids = steps.map((s) => s.id);
+    expect(ids.indexOf("P1.1")).toBeLessThan(ids.indexOf("P1.2"));
+    expect(ids.indexOf("K1.1")).toBeLessThan(ids.indexOf("K2"));
+    expect(ids.indexOf("P2.1")).toBeLessThan(ids.indexOf("E1"));
+  });
+});
