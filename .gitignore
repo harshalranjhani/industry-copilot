@@ -18,3 +18,5 @@ src/generated/
 next-env.d.ts
 *.tsbuildinfo
 .data/
+
+.scratch/asset-copilot/explainers/

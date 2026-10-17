@@ -1,7 +1,7 @@
 import type { EvalRun, StepResult } from "./runner";
 
-const usd = (n: number) => `$${n.toFixed(4)}`;
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+export const usd = (n: number) => `$${n.toFixed(4)}`;
+export const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const mark = (ok: boolean) => (ok ? "yes" : "no");
 const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s+/g, " ");
 

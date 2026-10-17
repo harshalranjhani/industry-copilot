@@ -2,11 +2,10 @@
 
 import { Renderer } from "@openuidev/react-lang";
 import { useState } from "react";
+import { seconds, usd } from "@/lib/evals/report";
 import type { StepResult } from "@/lib/evals/runner";
 import { copilotLibrary } from "@/lib/openui/library";
 
-const usd = (n: number) => `$${n.toFixed(4)}`;
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
 /** One row per question step; a row opens to its expected, matched and missed facts and the answer as the chat rendered it. */
 export function RunRows({ steps }: { steps: StepResult[] }) {
@@ -42,7 +41,8 @@ function StepRow({ r, expanded, toggle }: { r: StepResult; expanded: boolean; to
     <>
       <tr className="cursor-pointer border-t border-black/10 align-top dark:border-white/15" onClick={toggle}>
         <td className="py-2 pr-2 font-mono">
-          <button type="button" aria-expanded={expanded} className="underline" onClick={toggle}>
+          {/* The click bubbles to the row, which toggles. */}
+          <button type="button" aria-expanded={expanded} className="underline">
             {step.id}
           </button>
         </td>

@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { join } from "node:path";
 import type { EvalRun } from "@/lib/evals/runner";
+import { seconds, usd } from "@/lib/evals/report";
 import { readEvalRuns, summarizeRun } from "@/lib/evals/runs";
 import { RunRows } from "./run-rows";
 
-const usd = (n: number) => `$${n.toFixed(4)}`;
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
 export const metadata = { title: "Evals · Asset Intelligence Copilot" };
 
