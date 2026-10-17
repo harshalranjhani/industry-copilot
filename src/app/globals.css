@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+.copilot-sources {
+  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  padding-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+.copilot-sources h4 {
+  margin: 0 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.copilot-sources ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+}
+.copilot-sources li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.copilot-sources-kind {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  opacity: 0.6;
+  min-width: 6.5rem;
+}
+.copilot-sources code {
+  font-size: 0.75rem;
+}
+.copilot-sources-empty {
+  margin: 0;
+  opacity: 0.6;
+}

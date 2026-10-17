@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] One Next.js app (React 19, TypeScript, pnpm) starts with a single dev command; `OPENROUTER_API_KEY` and the default model `openai/gpt-6-luna` come from configuration
-- [ ] The agent has no shell, file or edit tools. A placeholder domain tool exists (e.g. an echo or `ping`) so the tool trace can be shown
-- [ ] Assistant text deltas stream progressively into the chat; tool execution start and end appear as tool-call entries in the trace
-- [ ] The final assistant message is pure OpenUI Lang with a root `Stack`, and renders without parse errors
-- [ ] A custom `Sources` component (items of kind, id or reference, and label) is registered in the extended library, and the system prompt requires it in every answer
-- [ ] Only the newest user message is sent into Pi; the server keeps the transcript for the conversation (in memory is fine at this stage)
-- [ ] The extended component library is created once, at module scope
+- [x] One Next.js app (React 19, TypeScript, pnpm) starts with a single dev command; `OPENROUTER_API_KEY` and the default model `openai/gpt-6-luna` come from configuration
+- [x] The agent has no shell, file or edit tools. A placeholder domain tool exists (e.g. an echo or `ping`) so the tool trace can be shown
+- [x] Assistant text deltas stream progressively into the chat; tool execution start and end appear as tool-call entries in the trace
+- [x] The final assistant message is pure OpenUI Lang with a root `Stack`, and renders without parse errors
+- [x] A custom `Sources` component (items of kind, id or reference, and label) is registered in the extended library, and the system prompt requires it in every answer
+- [x] Only the newest user message is sent into Pi; the server keeps the transcript for the conversation (in memory is fine at this stage)
+- [x] The extended component library is created once, at module scope
