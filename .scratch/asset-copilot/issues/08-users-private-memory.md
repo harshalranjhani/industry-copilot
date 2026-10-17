@@ -10,9 +10,9 @@ This delivers the Conversation Store, the user picker, the per-user digest in ne
 
 **Status:** ready-for-agent
 
-- [ ] A user picker in the header lists the users from the fleet file (name and role); the selected user is the identity in every request and in the system prompt
-- [ ] Conversations persist durably per user: title, model, Pi transcript, created and updated times. The sidebar lists only the selected user's conversations, and selecting one resumes it
-- [ ] After each answer, a digest entry stores the question, the wells, areas and record IDs named in the answer, and a one-line summary
-- [ ] A new conversation's system prompt includes the selected user's recent digest, newest first. "Yesterday" means the user's previous conversations
-- [ ] `recall_my_conversations` searches only the current user's history; no code path reads another user's conversations
-- [ ] In the UI, Q11 and the second part of Q16 behave as the example answers describe
+- [x] A user picker in the header lists the users from the fleet file (name and role); the selected user is the identity in every request and in the system prompt
+- [x] Conversations persist durably per user: title, model, Pi transcript, created and updated times. The sidebar lists only the selected user's conversations, and selecting one resumes it
+- [x] After each answer, a digest entry stores the question, the wells, areas and record IDs named in the answer, and a one-line summary
+- [x] A new conversation's system prompt includes the selected user's recent digest, newest first. "Yesterday" means the user's previous conversations
+- [x] `recall_my_conversations` searches only the current user's history; no code path reads another user's conversations
+- [x] In the UI, Q11 and the second part of Q16 behave as the example answers describe

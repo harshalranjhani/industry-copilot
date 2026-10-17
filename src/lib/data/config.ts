@@ -14,6 +14,8 @@ export interface DataConfig {
   dbPath: string;
   /** The durable knowledge store, kept apart from the data store so a reload never touches it (ADR 0001). */
   knowledgePath: string;
+  /** Every user's private conversations. Like the knowledge store, a data reload never touches it. */
+  conversationsPath: string;
 }
 
 /** Reads dataset configuration from the environment (DATA_DIRS, AS_OF, DATA_DB). */
@@ -28,5 +30,6 @@ export function readDataConfig(env: NodeJS.ProcessEnv = process.env): DataConfig
     asOf: env.AS_OF?.trim() || "2026-10-17",
     dbPath: resolve(env.DATA_DB?.trim() || join(".data", "copilot.db")),
     knowledgePath: resolve(env.KNOWLEDGE_DB?.trim() || join(".data", "knowledge.db")),
+    conversationsPath: resolve(env.CONVERSATIONS_DB?.trim() || join(".data", "conversations.db")),
   };
 }

@@ -5,13 +5,12 @@ import { readDataConfig } from "@/lib/data/config";
 import type { StoredDocument, StoredRule } from "@/lib/data/fleet";
 import { openFleet } from "@/lib/data/fleet";
 import { VIEW_DOCS } from "@/lib/data/schema";
+import type { CopilotUser } from "@/lib/conversations/identity";
+import type { DigestEntry } from "@/lib/conversations/store";
 
 // Written by `pnpm generate` (runs before dev and build) from src/library.ts.
 const OPENUI_PROMPT_PATH = join(process.cwd(), "src/generated/openui-prompt.txt");
 const GLOSSARY_PATH = join(process.cwd(), "GLOSSARY.md");
-
-/** Until the user picker exists, nobody is identified. */
-const USER_IDENTITY_PLACEHOLDER = "Not identified yet (the user picker is not available).";
 
 export interface PromptParts {
   openUiPrompt: string;
@@ -19,7 +18,9 @@ export interface PromptParts {
   asOf: string;
   rules: StoredRule[];
   documents: StoredDocument[];
-  userIdentity?: string;
+  user: CopilotUser;
+  /** The user's own recent answers, newest first. */
+  memory: DigestEntry[];
 }
 
 const QUERY_GUIDE = `## Querying the fleet (the query tool)
@@ -94,6 +95,24 @@ const ANSWER_RULES = `## How to answer
 - Refer to areas, teams and people by name, and to wells by ID.
 - Show the visual the user names; otherwise pick the one that fits (a Card for one well).`;
 
+const MEMORY_GUIDE = `Private memory: the entries below are this user's own earlier answers, newest first, and nobody else's. "Yesterday", "last time" and "earlier" mean this user's previous conversations: resolve "the wells we discussed" to the wells an earlier entry names (the entry that fits the question best), then query those wells as usual. Use recall_my_conversations when the digest is not enough (older or more detailed), or to read an earlier conversation back. When the user refers to an earlier conversation and neither the digest nor recall_my_conversations has it, say plainly that you have no such earlier conversation with them; do not guess wells, do not run queries for them, ask which wells they mean if useful, and never use or mention anyone else's conversations.`;
+
+function memorySection(user: CopilotUser, memory: DigestEntry[]): string {
+  const entries = memory.length
+    ? memory
+        .map((m) => {
+          const named = [
+            m.wells.length && `wells ${m.wells.join(", ")}`,
+            m.areas.length && `areas ${m.areas.join(", ")}`,
+            m.recordIds.length && `records ${m.recordIds.slice(0, 8).join(", ")}${m.recordIds.length > 8 ? ", …" : ""}`,
+          ].filter(Boolean);
+          return `- [${m.createdAt.slice(0, 10)}, conversation ${m.conversationId}] Asked: ${m.question}\n  Answer: ${m.summary}${named.length ? `\n  Named: ${named.join("; ")}` : ""}`;
+        })
+        .join("\n")
+    : `${user.name} has no earlier conversations with you.`;
+  return `## ${user.name}'s private memory\n\n${MEMORY_GUIDE}\n\n${entries}`;
+}
+
 function rulesSummary(rules: StoredRule[]): string {
   return rules
     .map((r) => `- ${r.wellType} ${r.key} = ${r.value} ${r.unit} (${r.document} §${r.section})`)
@@ -107,7 +126,8 @@ export function composeSystemPrompt(parts: PromptParts): string {
     .join("\n\n---\n\n");
   return [
     parts.openUiPrompt,
-    `## Who you are talking to\n\n${parts.userIdentity ?? USER_IDENTITY_PLACEHOLDER}`,
+    `## Who you are talking to\n\n${parts.user.name} (user ID ${parts.user.userId}), ${parts.user.role.replaceAll("_", " ")}${parts.user.teamName ? `, team ${parts.user.teamName}` : ""}. When they state a fact to record, they are the author.`,
+    memorySection(parts.user, parts.memory),
     `## Dates\n\nToday (AS_OF) is ${parts.asOf}. "Right now" always means each well's latest inspection, not today's date. Say when that inspection was.`,
     QUERY_GUIDE,
     KNOWLEDGE_GUIDE,
@@ -118,18 +138,18 @@ export function composeSystemPrompt(parts: PromptParts): string {
   ].join("\n\n");
 }
 
-/** The production prompt: the loaded data store's rules and documents plus the generated OpenUI prompt. */
-export function buildSystemPrompt(): string {
+/** The user-independent parts of the production prompt: the loaded data store's rules and documents plus the generated OpenUI prompt. */
+export function loadStaticPromptParts(): Omit<PromptParts, "user" | "memory"> {
   const { dbPath, knowledgePath, asOf } = readDataConfig();
   const fleet = openFleet(dbPath, { knowledgePath, asOf });
   try {
-    return composeSystemPrompt({
+    return {
       openUiPrompt: readFileSync(OPENUI_PROMPT_PATH, "utf-8"),
       glossary: readFileSync(GLOSSARY_PATH, "utf-8"),
       asOf,
       rules: fleet.rules(),
       documents: fleet.documents(),
-    });
+    };
   } finally {
     fleet.close();
   }

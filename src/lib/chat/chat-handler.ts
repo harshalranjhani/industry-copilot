@@ -1,12 +1,24 @@
 import { Agent } from "@earendil-works/pi-agent-core";
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { recallMyConversationsTool } from "@/lib/agent/recall-tool";
+import { type CopilotUser, USER_HEADER } from "@/lib/conversations/identity";
+import { conversationTitle, digestFromAnswer, messageText } from "@/lib/conversations/memory";
+import { ConversationConflict, type ConversationStore, type DigestEntry } from "@/lib/conversations/store";
 
 export interface ChatHandlerOptions {
   models: Models;
   model: Model<Api>;
-  systemPrompt: string;
+  /** The system prompt for a new conversation: who is talking and what they discussed before. */
+  systemPrompt: (context: { user: CopilotUser; memory: DigestEntry[] }) => string;
+  /** The domain tools; `recall_my_conversations` is added per user and conversation. */
   tools: AgentTool<any>[];
+  /** Durable, per-user conversations. */
+  conversations: ConversationStore;
+  /** Resolves the user a request claims to be (by the ID in the user header). */
+  findUser: (userId: string) => CopilotUser | undefined;
+  /** Area names, so a digest entry can record the areas an answer named. */
+  areaNames?: string[];
   /** Explicit provider key; when omitted the provider resolves its own (env) auth. */
   getApiKey?: (provider: string) => string | undefined;
 }
@@ -66,30 +78,69 @@ const STREAM_HEADERS = {
  * thread each turn, but each conversation's Pi agent owns its transcript, so
  * only the newest user message is fed into Pi.
  */
-export function createChatHandler({ models, model, systemPrompt, tools, getApiKey }: ChatHandlerOptions) {
-  // One agent per conversation; its state.messages is the server-owned transcript.
-  // In memory for now, so transcripts are lost on restart.
-  const conversations = new Map<string, Agent>();
-  const agentFor = (conversationId: string): Agent => {
-    let agent = conversations.get(conversationId);
+export function createChatHandler({
+  models,
+  model,
+  systemPrompt,
+  tools,
+  conversations,
+  findUser,
+  areaNames = [],
+  getApiKey,
+}: ChatHandlerOptions) {
+  // One live agent per user and conversation; its state.messages is the server-owned
+  // transcript, saved after every answer so a restart (or another session) can resume it.
+  const live = new Map<string, Agent>();
+  const agentFor = (user: CopilotUser, conversationId: string, transcript: unknown[]): Agent => {
+    const key = `${user.userId}:${conversationId}`;
+    let agent = live.get(key);
     if (!agent) {
+      const history = conversations.forUser(user.userId);
+      const conversationTools = [...tools, recallMyConversationsTool(user, history, conversationId)];
       agent = new Agent({
-        initialState: { systemPrompt, model, tools },
+        // A resumed transcript carries its own system prompt, so the conversation keeps the digest it started with.
+        initialState:
+          transcript.length > 0
+            ? { model, tools: conversationTools, messages: transcript as Agent["state"]["messages"] }
+            : {
+                systemPrompt: systemPrompt({ user, memory: history.recentDigest({ excludeConversationId: conversationId }) }),
+                model,
+                tools: conversationTools,
+              },
         streamFn: models.streamSimple.bind(models),
-        sessionId: conversationId,
+        sessionId: key,
         getApiKey,
       });
-      conversations.set(conversationId, agent);
+      live.set(key, agent);
     }
     return agent;
   };
 
   return async function POST(req: Request): Promise<Response> {
+    const user = findUser(req.headers.get(USER_HEADER)?.trim() ?? "");
+    if (!user) {
+      return Response.json({ error: `Pick who you are first: send a known user ID in the ${USER_HEADER} header.` }, { status: 401 });
+    }
+    const history = conversations.forUser(user.userId);
     const body = (await req.json().catch(() => ({}))) as ChatBody;
     const conversationId = body.threadId?.trim() || crypto.randomUUID();
     const lastUser = [...(body.messages ?? [])].reverse().find((m) => m.role === "user");
     const userText = extractText(lastUser?.content).trim();
-    const agent = agentFor(conversationId);
+
+    // Only this user's conversations are visible: another user's thread ID is simply not found,
+    // and cannot be claimed because the ID is taken.
+    let stored = history.get(conversationId);
+    if (!stored) {
+      live.delete(`${user.userId}:${conversationId}`);
+      try {
+        history.create({ id: conversationId, title: conversationTitle(userText), model: model.id });
+        stored = history.get(conversationId);
+      } catch (err) {
+        if (!(err instanceof ConversationConflict)) throw err;
+        return Response.json({ error: `${user.name} has no conversation ${conversationId}.` }, { status: 404 });
+      }
+    }
+    const agent = agentFor(user, conversationId, stored?.transcript ?? []);
 
     // An overlapping turn would interleave two streams into one transcript.
     if (agent.state.isStreaming || !userText) {
@@ -158,14 +209,23 @@ export function createChatHandler({ models, model, systemPrompt, tools, getApiKe
 
         void (async () => {
           try {
+            const before = agent.state.messages.length;
             await agent.prompt(userText);
             if (agent.state.errorMessage) {
               enqueue(chunk({ content: openuiNotice("error", "Model error", agent.state.errorMessage) }));
+            } else {
+              const answer = agent.state.messages
+                .slice(before)
+                .filter((m) => m.role === "assistant")
+                .map(messageText)
+                .findLast((text) => text.trim());
+              if (answer) history.recordDigest(conversationId, digestFromAnswer({ question: userText, answer, areaNames }));
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             enqueue(chunk({ content: openuiNotice("error", "Agent error", message) }));
           } finally {
+            history.saveTranscript(conversationId, agent.state.messages);
             unsubscribe();
             req.signal.removeEventListener("abort", onAbort);
             enqueue(chunk({}, "stop"));

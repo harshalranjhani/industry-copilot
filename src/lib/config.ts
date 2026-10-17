@@ -7,6 +7,11 @@ export interface CopilotConfig {
   defaultModelId: string;
 }
 
+/** The model a new conversation starts with (DEFAULT_MODEL, else the built-in default). */
+export function readDefaultModelId(): string {
+  return process.env.DEFAULT_MODEL?.trim() || DEFAULT_MODEL_ID;
+}
+
 /** Reads server configuration from the environment (.env in dev). */
 export function readConfig(): CopilotConfig {
   const env = process.env;
@@ -16,6 +21,6 @@ export function readConfig(): CopilotConfig {
   }
   return {
     openRouterApiKey,
-    defaultModelId: env.DEFAULT_MODEL?.trim() || DEFAULT_MODEL_ID,
+    defaultModelId: readDefaultModelId(),
   };
 }

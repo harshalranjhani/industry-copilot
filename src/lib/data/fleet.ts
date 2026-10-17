@@ -260,7 +260,11 @@ export interface Fleet {
    */
   query(sql: string, options?: { maxRows?: number }): QueryResult;
   /** A user of the fleet by exact ID or full name (case-insensitive), or undefined. */
-  findUser(nameOrId: string): { userId: string; name: string; role: string } | undefined;
+  findUser(nameOrId: string): { userId: string; name: string; role: string; teamName: string | null } | undefined;
+  /** Every user in the fleet file, for the user picker. */
+  users(): { userId: string; name: string; role: string; teamName: string | null }[];
+  /** The name of every area. */
+  areaNames(): string[];
   /**
    * Records what a user taught the copilot, for every user from now on: checks
    * the target exists, stores the entry (original value kept) and returns its
@@ -591,8 +595,20 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
     },
     findUser(nameOrId) {
       const term = nameOrId.trim().toLowerCase();
-      const row = db.prepare("SELECT user_id, name, role FROM users WHERE lower(user_id) = ? OR lower(name) = ?").get(term, term) as Row | undefined;
-      return row && { userId: row.user_id, name: row.name, role: row.role };
+      const row = db
+        .prepare("SELECT u.user_id, u.name, u.role, t.name AS team_name FROM users u LEFT JOIN teams t ON t.team_id = u.team_id WHERE lower(u.user_id) = ? OR lower(u.name) = ?")
+        .get(term, term) as Row | undefined;
+      return row && { userId: row.user_id, name: row.name, role: row.role, teamName: row.team_name };
+    },
+    users() {
+      return (
+        db
+          .prepare("SELECT u.user_id, u.name, u.role, t.name AS team_name FROM users u LEFT JOIN teams t ON t.team_id = u.team_id ORDER BY u.name")
+          .all() as Row[]
+      ).map((r) => ({ userId: r.user_id, name: r.name, role: r.role, teamName: r.team_name }));
+    },
+    areaNames() {
+      return (db.prepare("SELECT name FROM areas ORDER BY name").all() as Row[]).map((r) => r.name);
     },
     recordKnowledge(input) {
       if (!db.prepare("SELECT 1 FROM users WHERE user_id = ?").get(input.authorUserId)) {

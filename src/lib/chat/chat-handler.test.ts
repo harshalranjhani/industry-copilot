@@ -7,8 +7,13 @@ import {
 } from "@earendil-works/pi-ai";
 import { type Message, processStreamedMessage } from "@openuidev/react-headless";
 import { createParser } from "@openuidev/react-lang";
-import { beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { pingTool } from "@/lib/agent/tools";
+import { type ConversationStore, openConversationStore } from "@/lib/conversations/store";
+import { USER_HEADER } from "@/lib/conversations/identity";
 import { copilotLibrary } from "@/lib/openui/library";
 import { createChatHandler } from "./chat-handler";
 import { copilotStreamAdapter } from "./stream-adapter";
@@ -33,25 +38,52 @@ const ANSWER = `root = Stack([card, sources])
 card = Card([CardHeader("Pong")])
 sources = Sources([SourceItem("document", "ping", "Ping tool")])`;
 
+const USERS = [
+  { userId: "U-201", name: "Michael Turner", role: "production_supervisor" },
+  { userId: "U-202", name: "Jessica Reed", role: "field_inspector" },
+];
+const MICHAEL = "U-201";
+const JESSICA = "U-202";
+
 let faux: ReturnType<typeof fauxProvider>;
 let chat: ReturnType<typeof createChatHandler>;
+let workDir: string;
+let stores: ConversationStore[];
 
-beforeEach(() => {
-  faux = fauxProvider({ tokenSize: { min: 1, max: 1 } });
+/** A chat route over the conversation file; calling it again simulates a server restart. */
+function startServer(): ReturnType<typeof createChatHandler> {
+  const store = openConversationStore(join(workDir, "conversations.db"));
+  stores.push(store);
   const models = createModels();
   models.setProvider(faux.provider);
-  chat = createChatHandler({
+  return createChatHandler({
     models,
     model: faux.getModel(),
-    systemPrompt: "You are a test copilot.",
+    systemPrompt: ({ user, memory }) =>
+      `You are a test copilot talking to ${user.name}.\n${memory.map((m) => `Earlier: ${m.question} -> ${m.summary} [${m.wells.join(", ")}]`).join("\n")}`,
     tools: [pingTool],
+    conversations: store,
+    findUser: (id) => USERS.find((u) => u.userId === id),
+    areaNames: ["Northeast Block 7"],
   });
+}
+
+beforeEach(() => {
+  workDir = mkdtempSync(join(tmpdir(), "copilot-chat-"));
+  stores = [];
+  faux = fauxProvider({ tokenSize: { min: 1, max: 1 } });
+  chat = startServer();
 });
 
-function post(body: unknown): Request {
+afterEach(() => {
+  for (const store of stores) store.close();
+  rmSync(workDir, { recursive: true, force: true });
+});
+
+function post(body: unknown, userId: string = MICHAEL): Request {
   return new Request("http://localhost/api/chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", [USER_HEADER]: userId },
     body: JSON.stringify(body),
   });
 }
@@ -173,5 +205,131 @@ describe("chat route", () => {
     expect(parsed.root?.typeName).toBe("Stack");
     expect(JSON.stringify(parsed.root)).toContain('"typeName":"Callout"');
     expect(JSON.stringify(parsed.root)).toContain("Bad key");
+  });
+});
+
+/** Everything the model was shown on one request: system prompt, history, tool results. */
+const asSeen = (context: { messages: unknown[] }) => JSON.stringify(context.messages);
+
+describe("private memory", () => {
+  it("resumes a conversation after a server restart with the transcript intact", async () => {
+    const seen: string[] = [];
+    const answer = (text: string) => (context: { messages: unknown[] }) => {
+      seen.push(asSeen(context));
+      return fauxAssistantMessage([fauxText(text)]);
+    };
+    faux.setResponses([answer("The ranking is ready."), answer("Second answer.")]);
+
+    await readChunks(await chat(post({ threadId: "t1", messages: [{ role: "user", content: "rank NE-07 wells" }] })));
+    const afterRestart = startServer();
+    await readChunks(
+      await afterRestart(post({ threadId: "t1", messages: [{ role: "user", content: "and now costs?" }] })),
+    );
+
+    expect(seen[1]).toContain("rank NE-07 wells");
+    expect(seen[1]).toContain("The ranking is ready.");
+    expect(seen[1]).toContain("and now costs?");
+  });
+
+  const RANKING = `root = Stack([text, sources])
+text = TextContent("Top three wells in Northeast Block 7 by downtime: WELL-0121, WELL-0138 and WELL-0107.")
+sources = Sources([SourceItem("inspection", "INS-0121-0010", "Non-producing inspection")])`;
+
+  /** Michael's day 1: he asks Q6 in his own chat. */
+  async function michaelAsksQ6() {
+    faux.setResponses([fauxAssistantMessage([fauxText(RANKING)])]);
+    await readChunks(
+      await chat(post({ threadId: "day-1", messages: [{ role: "user", content: "Rank Northeast Block 7 wells by downtime this year" }] })),
+    );
+  }
+
+  /** Runs one new chat as a user and returns everything the model was shown. */
+  async function newChat(userId: string, threadId: string, question: string): Promise<string> {
+    let seen = "";
+    faux.setResponses([
+      (context: { messages: unknown[] }) => {
+        seen = asSeen(context);
+        return fauxAssistantMessage([fauxText("ok")]);
+      },
+    ]);
+    await readChunks(await chat(post({ threadId, messages: [{ role: "user", content: question }] }, userId)));
+    return seen;
+  }
+
+  it("gives a new conversation the user's recent answers, naming the wells they covered (Q11)", async () => {
+    await michaelAsksQ6();
+
+    const seen = await newChat(MICHAEL, "day-2", "For the three wells we discussed yesterday, what have repairs cost this year?");
+
+    expect(seen).toContain("Michael Turner");
+    expect(seen).toContain("Rank Northeast Block 7 wells by downtime this year");
+    expect(seen).toContain("WELL-0121, WELL-0138, WELL-0107");
+  });
+
+  it("never shows another user's history in a new conversation (Q16, second part)", async () => {
+    await michaelAsksQ6();
+
+    const seen = await newChat(JESSICA, "jessica-1", "For the three wells we discussed yesterday, what have repairs cost this year?");
+
+    expect(seen).toContain("Jessica Reed");
+    expect(seen).not.toContain("WELL-0121");
+    expect(seen).not.toContain("Rank Northeast Block 7");
+  });
+
+  it("recalls only the asking user's conversations through recall_my_conversations", async () => {
+    await michaelAsksQ6();
+    const recall = (userId: string, threadId: string) => {
+      let result = "";
+      faux.setResponses([
+        fauxAssistantMessage([fauxToolCall("recall_my_conversations", { text: "WELL-0121" }, { id: "recall-1" })], {
+          stopReason: "toolUse",
+        }),
+        (context: { messages: unknown[] }) => {
+          result = JSON.stringify(
+            (context.messages as Array<{ role: string }>).filter((m) => m.role === "toolResult"),
+          );
+          return fauxAssistantMessage([fauxText("ok")]);
+        },
+      ]);
+      return chat(post({ threadId, messages: [{ role: "user", content: "which wells did we discuss?" }] }, userId))
+        .then(readChunks)
+        .then(() => result);
+    };
+
+    const michael = await recall(MICHAEL, "day-2");
+    const jessica = await recall(JESSICA, "jessica-1");
+
+    expect(michael).toContain("WELL-0138");
+    expect(jessica).not.toContain("WELL-0121");
+    expect(jessica).toContain("no earlier conversation");
+  });
+
+  it("does not let another user open or continue a conversation by its ID", async () => {
+    await michaelAsksQ6();
+    let jessicaSaw = "";
+    faux.setResponses([
+      (context: { messages: unknown[] }) => {
+        jessicaSaw = asSeen(context);
+        return fauxAssistantMessage([fauxText("ok")]);
+      },
+    ]);
+
+    const res = await chat(post({ threadId: "day-1", messages: [{ role: "user", content: "what did we cover?" }] }, JESSICA));
+
+    expect(res.status).toBe(404);
+    expect(jessicaSaw).toBe("");
+    expect(faux.getPendingResponseCount()).toBe(1);
+  });
+
+  it("rejects a request that does not say who is asking", async () => {
+    const res = await chat(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId: "t9", messages: [{ role: "user", content: "hi" }] }),
+      }),
+    );
+
+    expect(res.status).toBe(401);
   });
 });

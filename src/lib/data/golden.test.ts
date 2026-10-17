@@ -680,7 +680,7 @@ describe("shared knowledge: recorded through the fleet, applied for everyone", (
 
   describe("naming the author", () => {
     it("finds a user by ID or by name, ignoring case, and nobody else", () => {
-      expect(overlay.findUser("U-201")).toEqual({ userId: "U-201", name: "Michael Turner", role: "production_supervisor" });
+      expect(overlay.findUser("U-201")).toEqual({ userId: "U-201", name: "Michael Turner", role: "production_supervisor", teamName: "Northeast Production" });
       expect(overlay.findUser("  michael turner ")?.userId).toBe("U-201");
       expect(overlay.findUser("Michael")).toBeUndefined();
     });
