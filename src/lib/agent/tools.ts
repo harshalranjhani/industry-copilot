@@ -106,9 +106,9 @@ function searchReportsTool(fleet: Fleet): AgentTool<typeof SearchReportsParams> 
 }
 
 const RecordKnowledgeParams = Type.Object({
-  kind: Type.Union([Type.Literal("correction"), Type.Literal("note"), Type.Literal("claim")], {
+  kind: Type.Union([Type.Literal("correction"), Type.Literal("note"), Type.Literal("claim"), Type.Literal("rule_override")], {
     description:
-      "correction: a re-measured or wrong inspection value. note: a fact to share about a well (a planned shut-in, a remark). claim: a statement about whether a well is producing.",
+      "correction: a re-measured or wrong inspection value. note: a fact to share about a well (a planned shut-in, a remark). claim: a statement about whether a well is producing. rule_override: a team rule that replaces a manual rule for every well of one well type.",
   }),
   author: Type.String({ description: "The user who stated it: their full name or user ID, exactly as they gave it" }),
   asset_id: Type.Optional(Type.String({ description: "Well ID. Required for a note or claim" })),
@@ -131,11 +131,18 @@ const RecordKnowledgeParams = Type.Object({
       description: "Correction only: the corrected value (°C, bbl, or false for spill_detected = not a spill)",
     }),
   ),
-  reason: Type.Optional(Type.String({ description: "Correction only: why the recorded value was wrong, in the user's words" })),
-  text: Type.Optional(Type.String({ description: "Note or claim: the statement, in the user's words, naming the well" })),
+  reason: Type.Optional(Type.String({ description: "Correction: why the recorded value was wrong, in the user's words. Rule override: why, if given" })),
+  text: Type.Optional(Type.String({ description: "Note, claim or rule override: the statement, in the user's words (naming the well, or the well type for a rule)" })),
   asserts_producing: Type.Optional(
     Type.Boolean({ description: "Claim only: true if it says the well is producing/running, false if shut in/stopped/down" }),
   ),
+  well_type: Type.Optional(Type.String({ description: 'Rule override only: the one well type it applies to, e.g. "T350"' })),
+  rule_key: Type.Optional(
+    Type.Literal("rca_corrective_count", {
+      description: "Rule override only: the rule changed. rca_corrective_count is the number of corrective repairs on one equipment kind that triggers a root-cause analysis",
+    }),
+  ),
+  rule_value: Type.Optional(Type.Number({ description: "Rule override only: the team's count, e.g. 2 for \"after 2 repairs\"" })),
   valid_from: Type.Optional(Type.String({ description: "Note or claim: first date it applies, YYYY-MM-DD" })),
   valid_to: Type.Optional(Type.String({ description: "Note or claim: last date it applies, YYYY-MM-DD; omit when open-ended" })),
 });
@@ -145,7 +152,7 @@ function recordKnowledgeTool(fleet: Fleet): AgentTool<typeof RecordKnowledgePara
     name: "record_knowledge",
     label: "Record knowledge",
     description:
-      "Record something the user taught you, for every user from now on: a correction to an inspection value (the original is kept beside it, attributed), a note shared about a well, or a claim about whether a well is producing. Call it in the same turn the user states the fact. The result gives the effect (before and after the derived results, e.g. producing), the conflicts (other evidence that disagrees: the inspector's remark, other people's notes, or for a claim the latest inspection) and, for a claim the data contradicts, status unconfirmed. Tell the user what was recorded, surface every conflict and ask them to confirm. An error says what to fix.",
+      "Record something the user taught you, for every user from now on: a correction to an inspection value (the original is kept beside it, attributed), a note shared about a well, a claim about whether a well is producing, or a rule override (a team rule for every well of one well type, applied to that type only and cited as the user's rule, not the manual's). Call it in the same turn the user states the fact. The result gives the effect (before and after the derived results, e.g. producing; for a spill's volume or detection also its compliance before and after: report required, SR-01, SR-02, SR-03 and whether the repair report's class is stale), the ruleEffect of a rule override (the count before and after and the wells whose root-cause analysis became due), the conflicts (other evidence that disagrees: the inspector's remark, other people's notes, or for a claim the latest inspection) and, for a claim the data contradicts, status unconfirmed. Tell the user what was recorded, surface every conflict and ask them to confirm. An error says what to fix.",
     parameters: RecordKnowledgeParams,
     executionMode: "sequential",
     execute: async (_toolCallId, params) => {
@@ -166,6 +173,16 @@ function recordKnowledgeTool(fleet: Fleet): AgentTool<typeof RecordKnowledgePara
                 field: need(params.field, "field"),
                 value: need(params.value, "value"),
                 reason: need(params.reason, "reason"),
+              }
+            : params.kind === "rule_override"
+            ? {
+                kind: "rule_override",
+                authorUserId: author.userId,
+                wellType: need(params.well_type, "well_type"),
+                ruleKey: need(params.rule_key, "rule_key"),
+                value: need(params.rule_value, "rule_value"),
+                text: need(params.text, "text"),
+                reason: params.reason,
               }
             : {
                 kind: params.kind,

@@ -110,6 +110,10 @@ export class QueryError extends Error {}
 /** A recording the model can fix: the message says what was wrong with the target or the value. */
 export class KnowledgeError extends Error {}
 
+/** The rules a team may override per well type: only those a view applies. */
+export const OVERRIDABLE_RULES = ["rca_corrective_count"] as const;
+export type OverridableRule = (typeof OVERRIDABLE_RULES)[number];
+
 /** The inspection fields a correction may change. */
 export const CORRECTABLE_FIELDS = ["wellhead_temp_c", "ambient_temp_c", "spill_detected", "spill_est_volume_bbl"] as const;
 export type CorrectableField = (typeof CORRECTABLE_FIELDS)[number];
@@ -135,6 +139,17 @@ export type KnowledgeInput =
       /** YYYY-MM-DD; a note is valid from/to these dates, inclusive. */
       validFrom?: string;
       validTo?: string;
+    }
+  | {
+      kind: "rule_override";
+      authorUserId: string;
+      /** The one well type the rule applies to. */
+      wellType: string;
+      ruleKey: OverridableRule;
+      /** The team's value for the rule, replacing the manual's for every well of that type. */
+      value: number;
+      text: string;
+      reason?: string;
     }
   | {
       kind: "claim";
@@ -167,6 +182,35 @@ export interface DerivedInspection {
   effectiveVolumeBbl: number | null;
 }
 
+/** One spill's Spill Response SOP duties, before or after an entry. */
+export interface DerivedCompliance {
+  spillClass: string;
+  reportingRequired: boolean;
+  /** When the SR-01 written notice was due, or null when no report is required. */
+  reportDueAt: string | null;
+  sr01Status: string;
+  sr02Status: string;
+  /** When SR-03 agency verification is due, or null when not required. */
+  sr03DueOn: string | null;
+  sr03Status: string;
+  /** The repair whose report covers the spill. */
+  repairId: string | null;
+  /** The class that report states; it no longer holds when classMismatch. */
+  reportStatedClass: string | null;
+  classMismatch: boolean;
+}
+
+/** What a rule override changed: the rule's value and the wells whose root-cause analysis duty flipped. */
+export interface RuleEffect {
+  wellType: string;
+  ruleKey: OverridableRule;
+  /** The effective value before and after (the manual's, or an earlier override). */
+  before: number;
+  after: number;
+  /** Wells and equipment kinds whose needs_rca differs: root-cause analyses newly due or no longer due. */
+  rcaChanges: { assetId: string; equipmentKind: string; correctiveRepairs: number; neededBefore: boolean; needsNow: boolean }[];
+}
+
 export interface RecordedKnowledge {
   entryId: string;
   kind: KnowledgeInput["kind"];
@@ -183,7 +227,11 @@ export interface RecordedKnowledge {
     after: DerivedInspection;
     /** The derived results that differ, e.g. ["producing", "deltaC"]. */
     changed: (keyof DerivedInspection)[];
+    /** The spill's compliance before and after (either is null while no spill stands); null when the inspection has no spill either way. */
+    compliance: { before: DerivedCompliance | null; after: DerivedCompliance | null } | null;
   } | null;
+  /** What a rule override changed; null for every other kind. */
+  ruleEffect: RuleEffect | null;
 }
 
 export interface QueryResult {
@@ -281,6 +329,24 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
     };
   };
 
+  const derivedCompliance = (inspectionId: string): DerivedCompliance | null => {
+    const r = db.prepare("SELECT * FROM spill_compliance WHERE inspection_id = ?").get(inspectionId) as Row | undefined;
+    return r
+      ? {
+          spillClass: r.spill_class,
+          reportingRequired: Boolean(r.reporting_required),
+          reportDueAt: r.report_due_at,
+          sr01Status: r.sr01_status,
+          sr02Status: r.sr02_status,
+          sr03DueOn: r.sr03_due_on,
+          sr03Status: r.sr03_status,
+          repairId: r.repair_id,
+          reportStatedClass: r.report_stated_class,
+          classMismatch: Boolean(r.class_mismatch),
+        }
+      : null;
+  };
+
   /** Notes (and, with `claims`, claims) by other people about an inspection, named in their field or their text. */
   const othersAbout = (inspectionId: string, authorUserId: string, kinds: ("note" | "claim")[]): KnowledgeConflict[] =>
     (
@@ -313,6 +379,7 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
       throw new KnowledgeError(`The corrected value must be a number (or true/false for spill_detected), got ${String(input.value)}.`);
     }
     const before = derivedInspection(input.inspectionId);
+    const complianceBefore = derivedCompliance(input.inspectionId);
     if (input.field === "spill_est_volume_bbl" && !before.isSpill) {
       throw new KnowledgeError(`${input.inspectionId} has no spill that stands, so there is no volume to correct.`);
     }
@@ -330,6 +397,7 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
       status: "accepted",
     });
     const after = derivedInspection(input.inspectionId);
+    const complianceAfter = derivedCompliance(input.inspectionId);
     const changed = (Object.keys(after) as (keyof DerivedInspection)[]).filter((key) => before[key] !== after[key]);
     // The inspector's remark and other people's notes about this inspection disagree
     // with a correction that flips its outcome.
@@ -341,7 +409,14 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
       }
       conflicts.push(...othersAbout(input.inspectionId, input.authorUserId, ["note", "claim"]));
     }
-    return { entryId, kind: "correction", status: "accepted", originalValue, conflicts, effect: { inspectionId: input.inspectionId, before, after, changed } };
+    return { entryId, kind: "correction", status: "accepted", originalValue, conflicts, ruleEffect: null, effect: {
+        inspectionId: input.inspectionId,
+        before,
+        after,
+        changed,
+        compliance: complianceBefore || complianceAfter ? { before: complianceBefore, after: complianceAfter } : null,
+      },
+    };
   };
 
   /** Notes and claims: stored as said. A claim the latest inspection contradicts is stored unconfirmed and changes nothing. */
@@ -391,7 +466,77 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
       validTo: input.validTo,
       status,
     });
-    return { entryId, kind: input.kind, status, originalValue: null, conflicts, effect: null };
+    return { entryId, kind: input.kind, status, originalValue: null, conflicts, effect: null, ruleEffect: null };
+  };
+
+  /** The root-cause analysis duty of every well and equipment kind, by well type. */
+  const rcaDuties = (wellType: string) =>
+    new Map(
+      (db.prepare("SELECT asset_id, equipment_kind, corrective_repairs, needs_rca FROM rca_candidates WHERE well_type = ?").all(wellType) as Row[]).map(
+        (r) => [`${r.asset_id}|${r.equipment_kind}`, r] as const,
+      ),
+    );
+
+  /** The value in force for a well type: the latest override, else the manual's. */
+  const ruleValue = (wellType: string, ruleKey: string): number =>
+    (
+      db
+        .prepare(
+          "SELECT COALESCE(o.value, r.value) AS value FROM rules r LEFT JOIN rule_overrides o ON o.well_type = r.well_type AND o.rule_key = r.key WHERE r.well_type = ? AND r.key = ?",
+        )
+        .get(wellType, ruleKey) as Row
+    ).value;
+
+  /** A team's rule for every well of one type: stored with that scope, applied by the views to that type only. */
+  const recordRuleOverride = (input: Extract<KnowledgeInput, { kind: "rule_override" }>): RecordedKnowledge => {
+    if (!OVERRIDABLE_RULES.includes(input.ruleKey)) {
+      throw new KnowledgeError(`${input.ruleKey} can't be overridden. Overridable rules: ${OVERRIDABLE_RULES.join(", ")}.`);
+    }
+    if (!db.prepare("SELECT 1 FROM wells WHERE well_type = ? LIMIT 1").get(input.wellType)) {
+      throw new KnowledgeError(`No wells of type ${input.wellType}. Ask which well type the rule is for.`);
+    }
+    if (typeof input.value !== "number" || !Number.isInteger(input.value) || input.value < 1) {
+      throw new KnowledgeError(`The count must be a whole number of at least 1, got ${String(input.value)}.`);
+    }
+    if (!input.text.trim()) throw new KnowledgeError("A rule override needs its text: the instruction in the user's words.");
+    const dutiesBefore = rcaDuties(input.wellType);
+    const before = ruleValue(input.wellType, input.ruleKey);
+    const manualValue = (db.prepare("SELECT value FROM rules WHERE well_type = ? AND key = ?").get(input.wellType, input.ruleKey) as Row).value;
+    const entryId = addChatEntry(knowledgePath, {
+      kind: "rule_override",
+      scope: "well_type",
+      wellType: input.wellType,
+      ruleKey: input.ruleKey,
+      value: input.value,
+      originalValue: manualValue,
+      text: input.text,
+      reason: input.reason,
+      authorUserId: input.authorUserId,
+      status: "accepted",
+    });
+    const rcaChanges: RuleEffect["rcaChanges"] = [];
+    for (const [key, now] of rcaDuties(input.wellType)) {
+      const was = dutiesBefore.get(key);
+      if (Boolean(was?.needs_rca) !== Boolean(now.needs_rca)) {
+        rcaChanges.push({
+          assetId: now.asset_id,
+          equipmentKind: now.equipment_kind,
+          correctiveRepairs: now.corrective_repairs,
+          neededBefore: Boolean(was?.needs_rca),
+          needsNow: Boolean(now.needs_rca),
+        });
+      }
+    }
+    rcaChanges.sort((a, b) => a.assetId.localeCompare(b.assetId) || a.equipmentKind.localeCompare(b.equipmentKind));
+    return {
+      entryId,
+      kind: "rule_override",
+      status: "accepted",
+      originalValue: manualValue,
+      conflicts: [],
+      effect: null,
+      ruleEffect: { wellType: input.wellType, ruleKey: input.ruleKey, before, after: ruleValue(input.wellType, input.ruleKey), rcaChanges },
+    };
   };
 
   return {
@@ -453,7 +598,8 @@ export function openFleet(dbPath: string, { knowledgePath, asOf }: FleetOptions)
       if (!db.prepare("SELECT 1 FROM users WHERE user_id = ?").get(input.authorUserId)) {
         throw new KnowledgeError(`No user with ID ${input.authorUserId}`);
       }
-      return input.kind === "correction" ? recordCorrection(input) : recordStatement(input);
+      if (input.kind === "correction") return recordCorrection(input);
+      return input.kind === "rule_override" ? recordRuleOverride(input) : recordStatement(input);
     },
     wellSnapshot(assetId) {
       const row = db

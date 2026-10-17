@@ -1012,4 +1012,163 @@ describe("shared knowledge: recorded through the fleet, applied for everyone", (
       ]);
     });
   });
+
+  const correctVolume = () =>
+    overlay.recordKnowledge({
+      kind: "correction",
+      authorUserId: MICHAEL,
+      inspectionId: "INS-0151-0201",
+      field: "spill_est_volume_bbl",
+      value: 5.4,
+      reason: "The field crew measured 5.4 bbl.",
+    });
+
+  describe("Q13: a corrected spill volume ripples through the spill compliance", () => {
+    it("returns the compliance before and after: reportable, SR-01 overdue, SR-03 due 2026-11-23, the report's class stale", () => {
+      const compliance = correctVolume().effect?.compliance;
+
+      expect(compliance?.before).toMatchObject({
+        spillClass: "moderate",
+        reportingRequired: false,
+        sr01Status: "not_required",
+        sr03DueOn: null,
+        classMismatch: false,
+      });
+      expect(compliance?.after).toMatchObject({
+        spillClass: "reportable",
+        reportingRequired: true,
+        reportDueAt: "2026-09-25T15:30:00Z",
+        sr01Status: "breached_open",
+        sr02Status: "breached_late",
+        sr03DueOn: "2026-11-23",
+        sr03Status: "pending",
+        repairId: "MNT-0151-025",
+        reportStatedClass: "moderate",
+        classMismatch: true,
+      });
+    });
+
+    it("has no compliance to return for a correction that touches no spill", () => {
+      const recorded = overlay.recordKnowledge({
+        kind: "correction",
+        authorUserId: MICHAEL,
+        inspectionId: "INS-0164-0205",
+        field: "wellhead_temp_c",
+        value: 41,
+        reason: "Re-measured.",
+      });
+
+      expect(recorded.effect?.compliance).toBeNull();
+    });
+  });
+
+  describe("Q15: Laura Simmons sees WELL-0151 as the only Northeast Block 8 spill needing a report", () => {
+    const needingReport = () =>
+      overlayRows(
+        `SELECT asset_id, sr01_status FROM spill_compliance
+         WHERE area_name = 'Northeast Block 8' AND discovered_on >= date('2026-10-17', '-90 days') AND discovered_on <= '2026-10-17'
+           AND reporting_required ORDER BY asset_id`,
+      );
+
+    it("needs no report from any of them before Michael Turner's correction", () => {
+      expect(needingReport()).toEqual([]);
+    });
+
+    it("flags WELL-0151 alone, overdue, once the volume is corrected to 5.4 bbl", () => {
+      correctVolume();
+
+      expect(needingReport()).toEqual([{ asset_id: "WELL-0151", sr01_status: "breached_open" }]);
+    });
+  });
+
+  describe("Q14: Michael Turner's rule for all T350 wells applies to T350 wells only", () => {
+    const neBlock7PumpJackWells = () =>
+      overlayRows(
+        `SELECT asset_id FROM rca_candidates
+         WHERE area_name = 'Northeast Block 7' AND equipment_kind = 'pump_jack' AND needs_rca ORDER BY asset_id`,
+      ).map((r) => r.asset_id);
+    const recordRule = () =>
+      overlay.recordKnowledge({
+        kind: "rule_override",
+        authorUserId: MICHAEL,
+        wellType: "T350",
+        ruleKey: "rca_corrective_count",
+        value: 2,
+        text: "Note for all T350 wells: our team now wants a pump jack root-cause analysis after 2 repairs, not 3.",
+      });
+
+    it("adds WELL-0120 (T350, 2 repairs) to the wells needing an RCA, and not WELL-0102 (T200, 2 repairs)", () => {
+      expect(neBlock7PumpJackWells()).toEqual(["WELL-0108", "WELL-0121", "WELL-0138"]);
+
+      recordRule();
+
+      expect(neBlock7PumpJackWells()).toEqual(["WELL-0108", "WELL-0120", "WELL-0121", "WELL-0138"]);
+      expect(
+        overlayRows("SELECT needs_rca, rca_threshold, rule_source FROM rca_candidates WHERE asset_id = 'WELL-0102' AND equipment_kind = 'pump_jack'"),
+      ).toEqual([{ needs_rca: 0, rca_threshold: 3, rule_source: "manual" }]);
+    });
+
+    it("returns the rule's effect: the count before and after, and the wells whose root-cause analysis became due", () => {
+      const recorded = recordRule();
+
+      expect(recorded).toMatchObject({ kind: "rule_override", status: "accepted", originalValue: 3, effect: null });
+      expect(recorded.ruleEffect).toMatchObject({ wellType: "T350", ruleKey: "rca_corrective_count", before: 3, after: 2 });
+      const newlyDue = recorded.ruleEffect?.rcaChanges.filter((c) => c.equipmentKind === "pump_jack").map((c) => c.assetId);
+      expect(newlyDue).toContain("WELL-0120");
+      expect(recorded.ruleEffect?.rcaChanges.every((c) => !c.neededBefore && c.needsNow)).toBe(true);
+      expect(recorded.ruleEffect?.rcaChanges.map((c) => c.assetId)).not.toContain("WELL-0102");
+      const wellTypes = new Set(overlayRows("SELECT asset_id, well_type FROM rca_candidates").filter((r) => newlyDue?.includes(r.asset_id)).map((r) => r.well_type));
+      expect([...wellTypes]).toEqual(["T350"]);
+    });
+
+    it("lists the rule among the overrides in force, with the manual's count beside it", () => {
+      const entry = recordRule();
+
+      expect(overlayRows("SELECT entry_id, well_type, rule_key, value, manual_value, author_name FROM rule_overrides")).toEqual([
+        { entry_id: entry.entryId, well_type: "T350", rule_key: "rca_corrective_count", value: 2, manual_value: 3, author_name: "Michael Turner" },
+      ]);
+    });
+
+    it("lets a later override of the same well type replace the earlier one", () => {
+      recordRule();
+      overlay.recordKnowledge({ kind: "rule_override", authorUserId: "U-101", wellType: "T350", ruleKey: "rca_corrective_count", value: 4, text: "T350 pump jack RCA after 4." });
+
+      expect(overlayRows("SELECT value, author_name FROM rule_overrides")).toEqual([{ value: 4, author_name: expect.not.stringMatching(/Michael/) }]);
+      // The T350 wells (0108, 0138) drop out; T200 WELL-0121 keeps the manual's count of 3.
+      expect(neBlock7PumpJackWells()).toEqual(["WELL-0121"]);
+    });
+
+    it("survives a reload of the dataset", () => {
+      recordRule();
+      overlay.close();
+      loadDataset({ roots: [SAMPLE_DATA_DIR], dbPath: overlayDb, knowledgePath: overlayKnowledge });
+      overlay = openFleet(overlayDb, { knowledgePath: overlayKnowledge, asOf: "2026-10-17" });
+
+      expect(neBlock7PumpJackWells()).toEqual(["WELL-0108", "WELL-0120", "WELL-0121", "WELL-0138"]);
+    });
+
+    it("refuses a rule it doesn't apply, a well type that has no wells, and a count that isn't a whole number", () => {
+      const rule = { kind: "rule_override", authorUserId: MICHAEL, wellType: "T350", ruleKey: "rca_corrective_count", value: 2, text: "RCA after 2." } as const;
+
+      expect(() => overlay.recordKnowledge({ ...rule, ruleKey: "producing_threshold_c" as "rca_corrective_count" })).toThrow(/can't be overridden/);
+      expect(() => overlay.recordKnowledge({ ...rule, wellType: "T999" })).toThrow(/No wells of type T999/);
+      expect(() => overlay.recordKnowledge({ ...rule, value: 1.5 })).toThrow(/whole number/);
+      expect(() => overlay.recordKnowledge({ ...rule, text: " " })).toThrow(/needs its text/);
+      expect(overlayRows("SELECT COUNT(*) AS n FROM rule_overrides")).toEqual([{ n: 0 }]);
+    });
+
+    it("records 'user rule by Michael Turner' as the source, with the manual's count beside it", () => {
+      const entry = recordRule();
+
+      expect(
+        overlayRows(
+          `SELECT asset_id, corrective_repairs, rca_threshold, rule_source, rule_entry_id, manual_rca_threshold, rule_document, rule_section
+           FROM rca_candidates WHERE asset_id IN ('WELL-0108', 'WELL-0120') AND equipment_kind = 'pump_jack' ORDER BY asset_id`,
+        ),
+      ).toEqual([
+        { asset_id: "WELL-0108", corrective_repairs: 3, rca_threshold: 2, rule_source: "user rule by Michael Turner", rule_entry_id: entry.entryId, manual_rca_threshold: 3, rule_document: null, rule_section: null },
+        { asset_id: "WELL-0120", corrective_repairs: 2, rca_threshold: 2, rule_source: "user rule by Michael Turner", rule_entry_id: entry.entryId, manual_rca_threshold: 3, rule_document: null, rule_section: null },
+      ]);
+    });
+  });
 });

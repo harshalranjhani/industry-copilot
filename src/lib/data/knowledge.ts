@@ -113,11 +113,16 @@ export function replaceDatasetKnowledge(path: string, notes: DatasetNote[]): voi
 }
 
 export interface ChatEntry {
-  kind: "note" | "correction" | "claim";
-  scope: "inspection_field" | "well";
-  assetId: string;
+  kind: "note" | "correction" | "claim" | "rule_override";
+  scope: "inspection_field" | "well" | "well_type";
+  /** The well; a rule override applies to a well type instead. */
+  assetId?: string;
   inspectionId?: string;
   field?: string;
+  /** Rule override: the well type it applies to, and only that one. */
+  wellType?: string;
+  /** Rule override: the rule it changes, e.g. rca_corrective_count. */
+  ruleKey?: string;
   value?: number | null;
   originalValue?: number | null;
   text?: string;
@@ -139,16 +144,18 @@ export function addChatEntry(path: string, entry: ChatEntry): string {
     const entryId = `KN-${String(next).padStart(4, "0")}`;
     db.prepare(
       `INSERT INTO knowledge_entries
-         (entry_id, kind, scope, asset_id, inspection_id, field, value, original_value, text, reason, author_user_id,
-          created_at, valid_from, valid_to, status, origin)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'chat')`,
+         (entry_id, kind, scope, asset_id, inspection_id, field, well_type, rule_key, value, original_value, text, reason,
+          author_user_id, created_at, valid_from, valid_to, status, origin)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'chat')`,
     ).run(
       entryId,
       entry.kind,
       entry.scope,
-      entry.assetId,
+      entry.assetId ?? null,
       entry.inspectionId ?? null,
       entry.field ?? null,
+      entry.wellType ?? null,
+      entry.ruleKey ?? null,
       entry.value ?? null,
       entry.originalValue ?? null,
       entry.text ?? null,

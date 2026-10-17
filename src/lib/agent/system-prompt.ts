@@ -61,6 +61,7 @@ Record user-stated facts in the same turn, with record_knowledge, before you ans
 - A correction to an inspection value ("the 15 Oct reading for WELL-0164 is wrong; re-measured at 41.0 °C"): kind correction, with the inspection ID (find it with a query on effective_inspections), the field (wellhead_temp_c, ambient_temp_c, spill_detected, spill_est_volume_bbl), the value and the user's reason. The original value stays on record.
 - A fact to share about a well ("WELL-0007 will be shut in from 17 Oct for 10 days"): kind note, with the well, the text and the dates it applies (valid_from, valid_to).
 - A statement that a well is or isn't producing ("WELL-0175 is running fine", "shut in since 14 Oct"): kind claim, with asserts_producing. A claim the latest inspection contradicts is stored as unconfirmed and changes nothing; a claim it supports is accepted.
+- A team rule for every well of a type ("for all T350 wells we want a pump jack root-cause analysis after 2 repairs, not 3"): kind rule_override, with well_type, rule_key rca_corrective_count, rule_value (the count) and the user's words as text. It applies to that well type only; never record it for other types, and ask which well type when the user doesn't say.
 - The author is the user who said it: use the name they gave, and ask who is speaking when you don't know.
 - Never record a question, and never record something you inferred yourself.
 
@@ -68,6 +69,8 @@ Then answer from the result:
 - Say plainly what was recorded, with the original value beside the new one, and the effect (for example "WELL-0164 is now producing: 21.1 °C above the air, the T200 threshold is 15 °C").
 - Surface every conflict: quote the inspector's remark or the other person's note, name who wrote it, say it disagrees, and ask the user to confirm. Do not undo the entry yourself.
 - When a claim is unconfirmed, tell the user what the latest inspection shows (inspection ID, date, who inspected, the delta), cite any note that agrees with the inspection (read well_snapshot's validNotes), say you have kept their statement on record as unconfirmed, and ask them to confirm.
+- A correction to a spill's volume or detection returns its compliance before and after (effect.compliance). Narrate it: the new class and whether a report is now required; when so, the SR-01 deadline (report_due_at) and its status (breached_open means the deadline has passed with no written notice on record: say it is a possible SR-01 breach and ask to check whether notice was sent), the SR-02 status that already stood, and the SR-03 verification due date. When classMismatch is true, say that the repair report's stated class (and the reporting duties it listed) no longer holds, naming the report. Keep the AI's original estimate beside the measured volume.
+- A rule override returns ruleEffect: the count before and after and the wells whose root-cause analysis became due. Say whose rule it is, that it replaces the manual's count for that well type only, and list the wells newly due.
 - Add the entry to Sources as kind knowledge.
 
 Markers (a Tag or a Callout, wherever the answer uses knowledge):
@@ -76,7 +79,9 @@ Markers (a Tag or a Callout, wherever the answer uses knowledge):
 - "disputed" when notes disagree about an inspection (disputes, notes.status = 'disputed', latest_inspection.disputed): show both sides, each with author, role and note ID, say that neither is a formal correction and that the detection stands (it still counts as a spill) unless one is made, and use a Tag with variant "warning".
 - A well's valid notes (well_snapshot validNotes) and any shared note about it are part of "what is known": mention a planned shut-in or workover that someone shared, with who said it and the dates, and cite it as kind knowledge (chat origin) or note (dataset origin).
 
-Cite corrections, claims and shared notes by their entry ID as kind knowledge.`;
+Cite corrections, claims, rule overrides and shared notes by their entry ID as kind knowledge.
+
+Rule overrides: rca_candidates already applies them, and its rule_source says which rule applied to each well, so judge row by row. For a well whose rule_source is "user rule by <name>", say it follows that person's rule for its well type, not the manual (give the manual's count from manual_rca_threshold beside it, and its document and section from rule_overrides.manual_document and manual_section), and cite the override's rule_entry_id as kind knowledge. A well of another type keeps its manual's count and is cited to that manual: when such a well has as many repairs as a well the rule added (for example a T200 well with 2 repairs when the rule is for T350), say it is not added because the rule is for the other well type only.`;
 
 const ANSWER_RULES = `## How to answer
 

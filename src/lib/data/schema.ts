@@ -382,6 +382,31 @@ LEFT JOIN main.regulatory_events resp ON resp.event_id = (
   ORDER BY r.date LIMIT 1
 );
 
+-- The rule overrides in force: per well type and rule, the latest accepted one,
+-- with the manual's own value beside it. An override applies to that well type only.
+CREATE TEMP VIEW rule_overrides AS
+SELECT
+  k.entry_id,
+  k.well_type,
+  k.rule_key,
+  k.value,
+  r.value AS manual_value,
+  r.document AS manual_document,
+  r.section AS manual_section,
+  k.text,
+  k.reason,
+  k.author_user_id,
+  u.name AS author_name,
+  k.created_at
+FROM (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY well_type, rule_key ORDER BY created_at DESC, entry_id DESC) AS recency
+  FROM knowledge_entries
+  WHERE kind = 'rule_override' AND scope = 'well_type' AND status = 'accepted'
+) k
+JOIN rules r ON r.well_type = k.well_type AND r.key = k.rule_key
+LEFT JOIN users u ON u.user_id = k.author_user_id
+WHERE k.recency = 1;
+
 -- Per well and equipment kind: corrective repairs started in the RCA window
 -- (the well type's rca_window_months before AS_OF, both ends inclusive)
 -- against the effective escalation count. rule_source says which rule applied.
@@ -396,16 +421,19 @@ SELECT
   group_concat(m.maintenance_id, ', ' ORDER BY m.started_at) AS repair_ids,
   date('${asOf}', '-' || win.value || ' months') AS window_start,
   win.value AS window_months,
-  cnt.value AS rca_threshold,
-  'manual' AS rule_source,
-  cnt.document AS rule_document,
-  cnt.section AS rule_section,
-  COUNT(*) >= cnt.value AS needs_rca
+  COALESCE(ov.value, cnt.value) AS rca_threshold,
+  cnt.value AS manual_rca_threshold,
+  CASE WHEN ov.entry_id IS NULL THEN 'manual' ELSE 'user rule by ' || COALESCE(ov.author_name, 'an unknown user') END AS rule_source,
+  ov.entry_id AS rule_entry_id,
+  CASE WHEN ov.entry_id IS NULL THEN cnt.document END AS rule_document,
+  CASE WHEN ov.entry_id IS NULL THEN cnt.section END AS rule_section,
+  COUNT(*) >= COALESCE(ov.value, cnt.value) AS needs_rca
 FROM maintenance m
 JOIN wells w ON w.asset_id = m.asset_id
 LEFT JOIN areas a ON a.area_id = w.area_id
 JOIN rules cnt ON cnt.well_type = w.well_type AND cnt.key = 'rca_corrective_count'
 JOIN rules win ON win.well_type = w.well_type AND win.key = 'rca_window_months'
+LEFT JOIN rule_overrides ov ON ov.well_type = w.well_type AND ov.rule_key = 'rca_corrective_count'
 WHERE m.maintenance_type = 'corrective'
   AND date(m.started_at) >= date('${asOf}', '-' || win.value || ' months')
   AND date(m.started_at) <= '${asOf}'
@@ -666,10 +694,31 @@ export const VIEW_DOCS: ViewDoc[] = [
       col("window_start", "first date of the window, YYYY-MM-DD"),
       col("window_months", ""),
       col("rca_threshold", "the effective escalation count"),
-      col("rule_source", "manual: the well-type manual's rule applied"),
-      col("rule_document", "the document that states the rule, e.g. OM-T200"),
-      col("rule_section", "its section"),
+      col("manual_rca_threshold", "the manual's escalation count, kept beside an override"),
+      col("rule_source", "manual (the well-type manual's rule) or 'user rule by <name>' (a team's rule override for the whole well type): cite whichever applied, and for a user rule say it is not the manual's"),
+      col("rule_entry_id", "the rule override's knowledge entry ID when rule_source is a user rule, else NULL"),
+      col("rule_document", "the manual that states the rule, e.g. OM-T200; NULL for a user rule"),
+      col("rule_section", "its section; NULL for a user rule"),
       col("needs_rca", "1 when corrective_repairs >= rca_threshold"),
+    ],
+  },
+  {
+    name: "rule_overrides",
+    description:
+      "Team rules that replace a manual rule for every well of one well type (and only that type). Today only rca_corrective_count (the escalation count for a root-cause analysis) can be overridden. rca_candidates already applies them; cite the override as the user's rule, not the manual's.",
+    columns: [
+      col("entry_id", "the knowledge entry's ID; cite it as kind knowledge"),
+      col("well_type", "the one well type it applies to, e.g. T350"),
+      col("rule_key", "the rule changed, e.g. rca_corrective_count"),
+      col("value", "the team's value"),
+      col("manual_value", "the manual's value for that well type"),
+      col("manual_document", "the manual document, e.g. OM-T350"),
+      col("manual_section", "its section"),
+      col("text", "the instruction in the user's words"),
+      col("reason", "why, or NULL"),
+      col("author_user_id", ""),
+      col("author_name", "who set the rule"),
+      col("created_at", ""),
     ],
   },
   {
