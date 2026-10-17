@@ -1,87 +1,65 @@
-# Industry Copilot — Asset Intelligence Copilot
+# Asset Intelligence Copilot
 
-Chat copilot for oil-field operators (FlytBase Hacktoberfest 2026 Hack Day). Ask plain-English questions about the well fleet and get cited answers with the right visual: a card, table, chart, map or heatmap. It is a Pi agent loop with OpenUI generative UI over the well dataset.
+Ask plain-English questions about an oil-field fleet and get cited answers with the right visual, shared operational knowledge and private conversation memory.
 
-- Domain language: [GLOSSARY.md](GLOSSARY.md)
-- Decisions: [docs/adr](docs/adr)
-- Submission write-up, final-two-hours runbook and video outline: [docs/WRITEUP.md](docs/WRITEUP.md)
-- Challenge docs: [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md), [DATASET_GUIDE.md](DATASET_GUIDE.md), [EXAMPLE_QUESTIONS.md](EXAMPLE_QUESTIONS.md)
+**For reviewers:** [Two-page write-up (PDF)](output/pdf/industry-copilot-writeup.pdf) | [Full answers + system design (PDF)](output/pdf/industry-copilot-submission.pdf) | [Final answers (Markdown)](output/answers/final-answers.md) | [Runbook + video outline](docs/RUNBOOK.md)
 
-## Quick start
+![System overview: SOPs in Pi's system prompt, OpenUI chat, runtime tools and three SQLite stores](docs/architecture/industry-copilot-system-design.png)
 
-You need a recent Node, [pnpm](https://pnpm.io), and an [OpenRouter API key](https://openrouter.ai/keys) (the only LLM provider).
+## Why this design
+
+- **Pi runs the investigation.** One agent per user/conversation chooses among seven typed tools through OpenRouter: five fleet tools plus private recall and preferences. Calls and arguments are generated for the question; results stream into the chat.
+- **SOPs guide; SQL calculates.** Full manuals/SOPs enter the system prompt. Their parsed numerical rules drive SQL views for production, downtime, spills and compliance; full-text search finds report evidence.
+- **Learning is shared and auditable.** Corrections and overrides preserve original values, authors and reasons. Claims and disputes stay visible. Reloading the dataset preserves what users taught it.
+- **Memory stays private and durable.** SQLite persists transcripts, compact digests, preferences and usage. New chats get up to 15 recent digests; recall reads earlier answers when needed. User-bound tools keep histories and preferences separate, including after restarts.
+- **Visuals adapt to the user.** OpenUI combines cards, tables, Leaflet maps and heatmaps with Vega-Lite plots for custom charts, thresholds and timelines. Follow-ups restyle the same data; saved preferences carry across chats. Each answer shows sources, model, tokens, cost and latency.
+
+## Run locally
+
+Use Node.js 26, pnpm and an [OpenRouter API key](https://openrouter.ai/keys).
 
 ```bash
-# 1. Get the code and the sample dataset (the dataset clone sits in the repo root, where it is git-ignored)
-git clone <this repo> industry-copilot && cd industry-copilot
+git clone https://github.com/harshalranjhani/industry-copilot.git
+cd industry-copilot
 git clone https://github.com/FlytBaseAILabs/flytbase-ahc-swe-asset-intelligence-dataset
-
-# 2. Install, configure, load, run
 pnpm install
-cp .env.example .env     # set OPENROUTER_API_KEY
-pnpm load                # build the data store from the dataset
-pnpm dev                 # http://localhost:3000
+cp .env.example .env   # set OPENROUTER_API_KEY
+pnpm load
+pnpm dev
 ```
 
-Open http://localhost:3000, pick who you are in the top bar (the starter questions follow your role), and ask. The model dropdown picks the model for **new** conversations; an existing conversation keeps its own. Each answer shows the tools it ran ("Querying fleet views", "Reading report MNT-0001-029"), its sources, and a footer with model, tokens, cost and latency. `/evals` shows the eval runs.
+Open **http://localhost:3000**, pick a user and a model, and ask **"Is WELL-0001 producing oil right now?"** A conversation keeps the model it started with. The user picker supplies demo identity; authentication is outside this challenge's scope.
 
-If the page says it could not load, run `pnpm load` and refresh. If an answer fails, the chat shows the reason (a bad key, an unavailable model, a tool error) instead of an empty reply.
+## Check the results
 
-## Configuration
+```bash
+pnpm golden     # deterministic checks against the sample data
+pnpm test
+pnpm typecheck
+pnpm eval       # real agent + model grader; writes EVALS.md and evals/results.json
+```
 
-Set these in `.env` (see [.env.example](.env.example)) or in the shell.
+Two scenario sets cover the [18 example questions / 27 turns](evals/example-questions.json) and [19 complex turns](evals/complex-questions.json) involving custom visuals, preferences, shared corrections and private recall. `/evals` lets reviewers select saved runs and compare results by step; [run history](evals/history/) preserves earlier evidence. [Complex results](evals/complex-results.json) are separate from the example results. The two-page write-up is the submission-length summary. The 31-page companion PDF preserves the full ungraded Luna answers, including limitations; it is supporting material, not the two-page write-up.
 
-| Variable | Default | What it does |
-|---|---|---|
-| `OPENROUTER_API_KEY` | none, **required** | The key every model call uses. |
-| `DATA_DIRS` | `flytbase-ahc-swe-asset-intelligence-dataset/sample-data` | Dataset roots, each holding `fleet/` and `assets/`. Separate several with `:` (`;` on Windows); a later root wins on ID collisions. |
-| `AS_OF` | `2026-10-17` | "Today". Relative periods ("last 4 months") end on it and are compared by date. |
-| `DEFAULT_MODEL` | `openai/gpt-6-luna` | The model a new conversation starts on; one of the five in the dropdown. |
-| `DATA_DB`, `KNOWLEDGE_DB`, `CONVERSATIONS_DB` | `.data/copilot.db`, `.data/knowledge.db`, `.data/conversations.db` | Where the stores live. |
+## Load new data
 
-`DATA_DIRS` and `AS_OF` are read by `pnpm load` and by the running app, so after changing either run `pnpm load` again and restart `pnpm dev`.
+Set `DATA_DIRS` to the sample and test roots, then reload and restart. Later roots win on record-ID collisions.
 
-## Commands
+```bash
+# In .env:
+DATA_DIRS=flytbase-ahc-swe-asset-intelligence-dataset/sample-data:test-data
+```
 
-| Command | What it does |
-|---|---|
-| `pnpm install` | Install dependencies. |
-| `pnpm load` | Rebuild the data store (`.data/copilot.db`) from `DATA_DIRS`. Fails naming the document if a required rule can't be parsed from a manual. |
-| `pnpm dev` | Run the app. First writes the system prompt OpenUI generates from the component library (`src/library.ts`) to `src/generated/`. |
-| `pnpm build` / `pnpm start` | Production build and server. |
-| `pnpm eval` | Replay the 18 example questions, grade them, write `evals/results.json` and `EVALS.md`. |
-| `pnpm test` / `pnpm golden` / `pnpm typecheck` | Tests, the sample dataset's known answers, the type checker. |
+The dataset store is rebuilt; `knowledge.db` and `conversations.db` persist. [Configuration, exact final-question commands and video steps](docs/RUNBOOK.md) are kept in the runbook. See [.env.example](.env.example) for `AS_OF`, `DEFAULT_MODEL` and store paths.
 
-`pnpm load` rebuilds only the dataset. Shared knowledge (corrections, notes, rule overrides) and every user's conversations live in their own files and **survive a reload**; delete `.data/knowledge.db` and `.data/conversations.db` for a clean slate.
+[Editable architecture diagram](docs/architecture/industry-copilot-system-design.excalidraw) | [Design decision: correction overlays](docs/adr/0001-corrections-as-overlay.md) | [Domain glossary](GLOSSARY.md) | [Challenge brief](PROBLEM_STATEMENT.md)
 
-## Runbook: the test dataset
+Public repository: [harshalranjhani/industry-copilot](https://github.com/harshalranjhani/industry-copilot). [MIT licensed](LICENSE).
 
-The test dataset has the same format as the sample (more wells, more history) and is loaded **alongside** it, not instead of it.
+## Final-question capture
 
-1. Put it beside the sample: unpack or clone it to `test-data/` in the repo root (git-ignored). It must hold `fleet/` and `assets/` directly, like `sample-data/`.
-2. Point `DATA_DIRS` at both roots, sample first, in `.env`:
-   ```bash
-   DATA_DIRS=flytbase-ahc-swe-asset-intelligence-dataset/sample-data:test-data
-   ```
-3. Reload and restart:
-   ```bash
-   pnpm load      # prints the counts per record type; check they grew
-   pnpm dev
-   ```
-4. Run the final questions through the chat as the right users, or replay them as a scenario file: copy `evals/example-questions.json` to `evals/final-questions.json`, fill it in, and run `pnpm eval evals/final-questions.json`.
+The [organiser question file](output/answers/final-questions.md) has 11 questions and 21 turns (Q7: 2, Q8: 5, Q9: 6). [Saved answers](output/answers/final-answers.md) were generated by GPT-6 Luna in order, with the specified user switches and conversation continuity. No grader was run for this capture. Raw OpenUI responses are retained in [JSON](output/answers/final-answers.json).
 
-To use the test dataset alone, set `DATA_DIRS=test-data`. If it fails to load, the error names the document and rule at fault.
+To generate a fresh capture, move the existing `output/answers/final-answers.json` and capture databases aside, configure the test dataset and `AS_OF=2027-01-15`, then run `pnpm exec tsx --conditions react-server src/scripts/final-answers.ts`. The script uses isolated capture stores and resumes an existing partial capture. It makes paid model calls; no eval is required.
 
-## Evals
-
-`pnpm eval [scenario-file] [--model <id>] [--grader <id>]` replays a scenario file (default `evals/example-questions.json`) through the same chat route the UI uses, as the right users in new or continued chats, on its own copy of the knowledge store reset to dataset-only (the app's `.data` files are untouched). A grader model (default `anthropic/claude-sonnet-5.5`) judges each answer's facts, evidence and visual. `--model` runs the copilot on another allowlisted model. The final questions are just another scenario file in the same format.
-
-## Layout
-
-- `src/app` — the chat page, the `/evals` page and the API routes.
-- `src/lib/agent` — the system prompt and the tools the model calls.
-- `src/lib/data` — the dataset loader, the SQLite views and the shared knowledge store.
-- `src/lib/chat` — the chat route, the stream the browser parses, starters and tool-trace labels.
-- `src/lib/openui` — the component library: sources, map, heatmap on top of OpenUI's own.
-
-License: MIT
+Known limitations remain: historical well-type changes and dataset `data_correction` notes are not fully applied by the data views; fleet-wide report-text aggregation is limited; some generated inventories, status judgements and requested visuals are incomplete or inconsistent. See the results discussion in [the write-up](docs/WRITEUP.md). A recorded video and submission through OrganizerHQ are still required.

@@ -14,9 +14,10 @@ import { HISTORY_DIR, historyFileName } from "../lib/evals/runs";
 import { loadScenarios } from "../lib/evals/scenarios";
 import { isAllowedModel } from "../lib/models";
 
-// `pnpm eval [scenario-file] [--model <id>] [--grader <id>] [--results <file>] [--report <file>]`
+// `pnpm eval [scenario-file] [--model <id>] [--grader <id>] [--results <file>] [--report <file>] [--workdir <dir>]`
 // Replays the scenarios through the real copilot and writes a results file and EVALS.md,
 // plus a copy of the results under evals/history/ that later runs never overwrite.
+// --workdir (default .data/eval) holds the run's own knowledge and conversation stores, so two runs can go in parallel.
 // Run it with `--conditions react-server` (the package script does) so `server-only` imports load outside Next.
 
 const GRADER_DEFAULT = "anthropic/claude-sonnet-5.5";
@@ -32,7 +33,7 @@ function parseArgs(argv: string[]) {
       flags.set(arg.slice(2), value);
     } else positional.push(arg);
   }
-  const unknown = [...flags.keys()].filter((f) => !["model", "grader", "results", "report"].includes(f));
+  const unknown = [...flags.keys()].filter((f) => !["model", "grader", "results", "report", "workdir"].includes(f));
   if (unknown.length) throw new Error(`Unknown option --${unknown[0]}`);
   return {
     scenarioPath: resolve(positional[0] ?? "evals/example-questions.json"),
@@ -40,6 +41,7 @@ function parseArgs(argv: string[]) {
     grader: flags.get("grader") ?? GRADER_DEFAULT,
     resultsPath: resolve(flags.get("results") ?? "evals/results.json"),
     reportPath: resolve(flags.get("report") ?? "EVALS.md"),
+    workdir: resolve(flags.get("workdir") ?? join(".data", "eval")),
   };
 }
 
@@ -56,7 +58,7 @@ async function main() {
 
   // The run works on its own copy of the knowledge store and its own conversations, so it never touches the app's.
   const data = readDataConfig();
-  const evalDir = resolve(".data", "eval");
+  const evalDir = args.workdir;
   mkdirSync(evalDir, { recursive: true });
   const knowledgePath = join(evalDir, "knowledge.db");
   const conversationsPath = join(evalDir, "conversations.db");

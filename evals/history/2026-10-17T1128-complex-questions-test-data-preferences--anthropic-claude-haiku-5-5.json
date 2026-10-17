@@ -1,0 +1,709 @@
+{
+  "scenario": "Complex questions (test data): preferences, custom visuals, shared and private memory",
+  "model": "anthropic/claude-haiku-5.5",
+  "graderModel": "openai/gpt-6-luna",
+  "startedAt": "2026-10-17T11:28:09.928Z",
+  "passed": 0,
+  "total": 19,
+  "steps": [
+    {
+      "step": {
+        "id": "P1.1",
+        "user": "Emily Carter",
+        "chat": "new",
+        "question": "From now on, whenever you chart temperatures, draw the wellhead in red and the air in blue. And for rankings I prefer horizontal bar charts.",
+        "expectedFacts": [
+          "The answer confirms both preferences were saved for Emily Carter: wellhead temperature in red and air temperature in blue, and horizontal bar charts for rankings",
+          "The answer gives the saved preferences' IDs (PREF-…)",
+          "The answer treats them as Emily Carter's own preferences, not as facts recorded for everyone"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "8531c830-b05b-46d4-8bf8-9d47cbb45bbf",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-5DSD6xoUGpP6Tk5nz5kH\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-5DSD6xoUGpP6Tk5nz5kH\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The answer confirms both preferences were saved for Emily Carter: wellhead temperature in red and air temperature in blue, and horizontal bar charts for rankings",
+          "The answer gives the saved preferences' IDs (PREF-…)",
+          "The answer treats them as Emily Carter's own preferences, not as facts recorded for everyone"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-5DSD6xoUGpP6Tk5nz5kH\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 1193
+    },
+    {
+      "step": {
+        "id": "P1.2",
+        "user": "Emily Carter",
+        "chat": "new",
+        "question": "Chart WELL-0397's wellhead and air temperature for the last 13 weeks and mark the weeks it was not producing oil.",
+        "expectedFacts": [
+          "The chart has 13 weekly readings, from 22 Oct 2026 to 14 Jan 2027",
+          "The wellhead line is red and the air line is blue, following Emily Carter's saved preference",
+          "WELL-0397 was not producing on 7 Jan and 14 Jan 2027 (only 5.3 °C and 5.2 °C above the air, below the T200 limit of 15 °C), and only on those dates, and the chart marks those two readings",
+          "The readings on 7 Jan and 14 Jan 2027 are 16.3 °C wellhead / 11.0 °C air and 13.9 °C wellhead / 8.7 °C air"
+        ],
+        "expectedVisual": "line_chart"
+      },
+      "threadId": "60abfa02-9bda-4b4a-a967-1dfe4eeac334",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-6Bjc1usSfZeELCgaFpQn\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-6Bjc1usSfZeELCgaFpQn\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The chart has 13 weekly readings, from 22 Oct 2026 to 14 Jan 2027",
+          "The wellhead line is red and the air line is blue, following Emily Carter's saved preference",
+          "WELL-0397 was not producing on 7 Jan and 14 Jan 2027 (only 5.3 °C and 5.2 °C above the air, below the T200 limit of 15 °C), and only on those dates, and the chart marks those two readings",
+          "The readings on 7 Jan and 14 Jan 2027 are 16.3 °C wellhead / 11.0 °C air and 13.9 °C wellhead / 8.7 °C air"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-6Bjc1usSfZeELCgaFpQn\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 118
+    },
+    {
+      "step": {
+        "id": "P1.3",
+        "user": "Emily Carter",
+        "chat": "continue",
+        "question": "Now show the difference between wellhead and air instead, as an orange area chart, with the T200 producing threshold as a dashed line.",
+        "expectedFacts": [
+          "The chart shows the wellhead-minus-air difference for the same 13 weeks, 22 Oct 2026 to 14 Jan 2027",
+          "The area is orange",
+          "A dashed line marks the 15 °C T200 producing threshold (OM-T200 manual)",
+          "The difference is 5.3 °C on 7 Jan and 5.2 °C on 14 Jan 2027, below the threshold; every earlier week is above it (lowest 18.6 °C on 31 Dec 2026, highest 30.1 °C on 29 Oct 2026)"
+        ],
+        "expectedVisual": "area_chart"
+      },
+      "threadId": "60abfa02-9bda-4b4a-a967-1dfe4eeac334",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-U0W0NFmqyn6bIkbM0nA0\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-U0W0NFmqyn6bIkbM0nA0\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The chart shows the wellhead-minus-air difference for the same 13 weeks, 22 Oct 2026 to 14 Jan 2027",
+          "The area is orange",
+          "A dashed line marks the 15 °C T200 producing threshold (OM-T200 manual)",
+          "The difference is 5.3 °C on 7 Jan and 5.2 °C on 14 Jan 2027, below the threshold; every earlier week is above it (lowest 18.6 °C on 31 Dec 2026, highest 30.1 °C on 29 Oct 2026)"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236491-U0W0NFmqyn6bIkbM0nA0\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 384
+    },
+    {
+      "step": {
+        "id": "P2.1",
+        "user": "Emily Carter",
+        "chat": "new",
+        "question": "Rank the top 5 wells in Southwest Block 23 by total spill volume in 2026.",
+        "expectedFacts": [
+          "WELL-0005: 13.3 bbl from 3 spills",
+          "WELL-0013: 11.6 bbl from 4 spills",
+          "WELL-0042: 10.0 bbl from 2 spills",
+          "WELL-0287: 9.0 bbl from 4 spills and WELL-0001: 8.4 bbl from 2 spills",
+          "The next well, WELL-0267 with 8.1 bbl, is not in the top five",
+          "The chart is a horizontal bar chart, following Emily Carter's saved preference for rankings"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "acb584b1-daf1-4aad-a737-514b11f34bab",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-4NucCnwOv9agKTC2QRSI\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-4NucCnwOv9agKTC2QRSI\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "WELL-0005: 13.3 bbl from 3 spills",
+          "WELL-0013: 11.6 bbl from 4 spills",
+          "WELL-0042: 10.0 bbl from 2 spills",
+          "WELL-0287: 9.0 bbl from 4 spills and WELL-0001: 8.4 bbl from 2 spills",
+          "The next well, WELL-0267 with 8.1 bbl, is not in the top five",
+          "The chart is a horizontal bar chart, following Emily Carter's saved preference for rankings"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-4NucCnwOv9agKTC2QRSI\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 254
+    },
+    {
+      "step": {
+        "id": "P2.2",
+        "user": "Emily Carter",
+        "chat": "continue",
+        "question": "Just this once, make it vertical with dark green bars and the volume written on each bar.",
+        "expectedFacts": [
+          "The chart shows the same five wells and volumes (WELL-0005 13.3, WELL-0013 11.6, WELL-0042 10.0, WELL-0287 9.0, WELL-0001 8.4 bbl)",
+          "The bars are vertical and dark green",
+          "Each bar is labelled with its volume",
+          "The saved horizontal-bar preference is kept for later answers; it is not deleted or replaced"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "acb584b1-daf1-4aad-a737-514b11f34bab",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-3tHxD2lmlDwhIhmETaBu\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-3tHxD2lmlDwhIhmETaBu\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The chart shows the same five wells and volumes (WELL-0005 13.3, WELL-0013 11.6, WELL-0042 10.0, WELL-0287 9.0, WELL-0001 8.4 bbl)",
+          "The bars are vertical and dark green",
+          "Each bar is labelled with its volume",
+          "The saved horizontal-bar preference is kept for later answers; it is not deleted or replaced"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-3tHxD2lmlDwhIhmETaBu\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 384
+    },
+    {
+      "step": {
+        "id": "P3",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "What chart preferences do I have saved? And what colours did Emily Carter ask for?",
+        "expectedFacts": [
+          "Michael Turner has no saved preferences",
+          "The answer does not reveal Emily Carter's preferences (no red, blue or horizontal-bar choices) and says preferences are private to each user"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "3d624918-2734-45b0-80f5-97e171634a24",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-0DQh0QuOKsWqgWSsoo5b\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-0DQh0QuOKsWqgWSsoo5b\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "Michael Turner has no saved preferences",
+          "The answer does not reveal Emily Carter's preferences (no red, blue or horizontal-bar choices) and says preferences are private to each user"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-0DQh0QuOKsWqgWSsoo5b\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 262
+    },
+    {
+      "step": {
+        "id": "M1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "On a satellite map, show every spill in Southwest Block 24 in the last 90 days, coloured from yellow (small) to red (large) by volume and sized by volume, with the well labels always visible.",
+        "expectedFacts": [
+          "The map has 13 spills at 11 wells, between 22 Oct 2026 and 14 Jan 2027",
+          "The largest is WELL-0067 on 7 Jan 2027 with 5.6 bbl (the clean-up crew's measured volume from Laura Simmons' data correction CTX-0067-002, replacing the AI's 4.8 bbl estimate), at 31.80529, -102.44261",
+          "The smallest is WELL-0097 on 7 Jan 2027 with 0.2 bbl",
+          "WELL-0062 had two spills (5 Nov 2026, 0.3 bbl and 24 Dec 2026, 2.7 bbl) and WELL-0072 had two (10 Dec 2026, 2.0 bbl and 17 Dec 2026, 3.8 bbl)",
+          "The other spills are WELL-0085 22 Oct 4.1 bbl, WELL-0077 5 Nov 0.7 bbl, WELL-0056 3 Dec 2.9 bbl, WELL-0074 3 Dec 0.7 bbl, WELL-0260 3 Dec 1.6 bbl, WELL-0089 31 Dec 1.0 bbl and WELL-0284 14 Jan 2027 1.5 bbl",
+          "The map uses the satellite basemap, colours pins by volume on a yellow-to-red ramp, sizes them by volume and keeps labels visible"
+        ],
+        "expectedVisual": "map"
+      },
+      "threadId": "7b1650da-f7a9-47b5-ab46-fe261ee08cd3",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-pXvbLSl7lZdAfL9uLN0X\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-pXvbLSl7lZdAfL9uLN0X\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The map has 13 spills at 11 wells, between 22 Oct 2026 and 14 Jan 2027",
+          "The largest is WELL-0067 on 7 Jan 2027 with 5.6 bbl (the clean-up crew's measured volume from Laura Simmons' data correction CTX-0067-002, replacing the AI's 4.8 bbl estimate), at 31.80529, -102.44261",
+          "The smallest is WELL-0097 on 7 Jan 2027 with 0.2 bbl",
+          "WELL-0062 had two spills (5 Nov 2026, 0.3 bbl and 24 Dec 2026, 2.7 bbl) and WELL-0072 had two (10 Dec 2026, 2.0 bbl and 17 Dec 2026, 3.8 bbl)",
+          "The other spills are WELL-0085 22 Oct 4.1 bbl, WELL-0077 5 Nov 0.7 bbl, WELL-0056 3 Dec 2.9 bbl, WELL-0074 3 Dec 0.7 bbl, WELL-0260 3 Dec 1.6 bbl, WELL-0089 31 Dec 1.0 bbl and WELL-0284 14 Jan 2027 1.5 bbl",
+          "The map uses the satellite basemap, colours pins by volume on a yellow-to-red ramp, sizes them by volume and keeps labels visible"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236492-pXvbLSl7lZdAfL9uLN0X\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 91
+    },
+    {
+      "step": {
+        "id": "K1.1",
+        "user": "Laura Simmons",
+        "chat": "new",
+        "question": "The AI estimated the 24 Sep spill at WELL-0151 as 4.5 bbl. The field crew measured 5.4 bbl.",
+        "expectedFacts": [
+          "The corrected volume of 5.4 bbl is recorded against inspection INS-0151-0201 (24 Sep 2026), keeping the AI's estimate (4.5 bbl), attributed to Laura Simmons",
+          "At 5.4 bbl the spill is reportable (5 bbl or more under the Spill Response SOP); the written notice was due within 24 hours (revision 4, spill discovered before 1 Jan 2027) and none is on record, so a possible SR-01 breach is flagged",
+          "As a reportable spill it also needed agency verification of the clean-up by 23 Nov 2026 (SR-03, 60 days) and no site inspection is on record, so SR-03 is overdue too",
+          "Repair report MNT-0151-025 classed it as moderate (and said agency verification did not apply), which no longer holds"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "3d42059c-4d9e-4255-820b-dce712c7f3c7",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-qXKZqIFDsnC7ZsnciXEZ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-qXKZqIFDsnC7ZsnciXEZ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The corrected volume of 5.4 bbl is recorded against inspection INS-0151-0201 (24 Sep 2026), keeping the AI's estimate (4.5 bbl), attributed to Laura Simmons",
+          "At 5.4 bbl the spill is reportable (5 bbl or more under the Spill Response SOP); the written notice was due within 24 hours (revision 4, spill discovered before 1 Jan 2027) and none is on record, so a possible SR-01 breach is flagged",
+          "As a reportable spill it also needed agency verification of the clean-up by 23 Nov 2026 (SR-03, 60 days) and no site inspection is on record, so SR-03 is overdue too",
+          "Repair report MNT-0151-025 classed it as moderate (and said agency verification did not apply), which no longer holds"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-qXKZqIFDsnC7ZsnciXEZ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 226
+    },
+    {
+      "step": {
+        "id": "K1.2",
+        "user": "Laura Simmons",
+        "chat": "continue",
+        "question": "Plot every Northeast Block 8 spill between 1 Jul and 30 Sep 2026 as volume against containment hours, with dashed lines at the 5 bbl reporting threshold and the 4-hour containment limit, and colour the ones that needed a regulator report red.",
+        "expectedFacts": [
+          "There are 10 spills; the July ones are WELL-0270 9 Jul (1.4 bbl, 1.0 h), WELL-0194 16 Jul (1.5 bbl, 1.8 h), WELL-0186 23 Jul (0.6 bbl, 1.4 h), WELL-0165 30 Jul (1.2 bbl, 1.1 h) and WELL-0175 30 Jul (3.9 bbl, 2.8 h)",
+          "The August and September ones are WELL-0270 20 Aug (3.8 bbl, 2.7 h), WELL-0258 27 Aug (0.5 bbl, 2.7 h), WELL-0258 3 Sep (3.3 bbl, 5.4 h), WELL-0151 24 Sep (5.4 bbl, 6.4 h) and WELL-0258 24 Sep (2.1 bbl, 1.3 h)",
+          "Only WELL-0151 needed a report, because of the corrected 5.4 bbl volume, and it is the only red point",
+          "Two spills are past the 4-hour containment limit (SR-02 breaches): WELL-0151 24 Sep (6.4 h) and WELL-0258 3 Sep (5.4 h)",
+          "Dashed lines mark 5 bbl and 4 hours",
+          "Containment hours come from the repair reports"
+        ],
+        "expectedVisual": "scatter_chart"
+      },
+      "threadId": "3d42059c-4d9e-4255-820b-dce712c7f3c7",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-xg9gADaeSh9NIgp48h7Z\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-xg9gADaeSh9NIgp48h7Z\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "There are 10 spills; the July ones are WELL-0270 9 Jul (1.4 bbl, 1.0 h), WELL-0194 16 Jul (1.5 bbl, 1.8 h), WELL-0186 23 Jul (0.6 bbl, 1.4 h), WELL-0165 30 Jul (1.2 bbl, 1.1 h) and WELL-0175 30 Jul (3.9 bbl, 2.8 h)",
+          "The August and September ones are WELL-0270 20 Aug (3.8 bbl, 2.7 h), WELL-0258 27 Aug (0.5 bbl, 2.7 h), WELL-0258 3 Sep (3.3 bbl, 5.4 h), WELL-0151 24 Sep (5.4 bbl, 6.4 h) and WELL-0258 24 Sep (2.1 bbl, 1.3 h)",
+          "Only WELL-0151 needed a report, because of the corrected 5.4 bbl volume, and it is the only red point",
+          "Two spills are past the 4-hour containment limit (SR-02 breaches): WELL-0151 24 Sep (6.4 h) and WELL-0258 3 Sep (5.4 h)",
+          "Dashed lines mark 5 bbl and 4 hours",
+          "Containment hours come from the repair reports"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-xg9gADaeSh9NIgp48h7Z\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 87
+    },
+    {
+      "step": {
+        "id": "K2",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Which Northeast Block 8 spills between 1 Jul and 30 Sep 2026 needed a report to the regulator? Show all their volumes as a bar chart with the reporting threshold as a red line.",
+        "expectedFacts": [
+          "Only WELL-0151's 24 Sep 2026 spill needed a report, because Laura Simmons corrected its volume from 4.5 bbl to 5.4 bbl",
+          "No written notice is on record for it, so it is flagged as a possible SR-01 breach",
+          "The bars show all 10 spills: WELL-0270 1.4 (9 Jul), WELL-0194 1.5, WELL-0186 0.6, WELL-0165 1.2, WELL-0175 3.9, WELL-0270 3.8 (20 Aug), WELL-0258 0.5 (27 Aug), WELL-0258 3.3 (3 Sep), WELL-0151 5.4 and WELL-0258 2.1 (24 Sep) bbl",
+          "A red line marks the 5 bbl reporting threshold"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "53c9892a-2abc-4d5a-b7a9-560f3556eeee",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-UF7LOKjoDu8d1p5Tuv5E\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-UF7LOKjoDu8d1p5Tuv5E\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "Only WELL-0151's 24 Sep 2026 spill needed a report, because Laura Simmons corrected its volume from 4.5 bbl to 5.4 bbl",
+          "No written notice is on record for it, so it is flagged as a possible SR-01 breach",
+          "The bars show all 10 spills: WELL-0270 1.4 (9 Jul), WELL-0194 1.5, WELL-0186 0.6, WELL-0165 1.2, WELL-0175 3.9, WELL-0270 3.8 (20 Aug), WELL-0258 0.5 (27 Aug), WELL-0258 3.3 (3 Sep), WELL-0151 5.4 and WELL-0258 2.1 (24 Sep) bbl",
+          "A red line marks the 5 bbl reporting threshold"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-UF7LOKjoDu8d1p5Tuv5E\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 85
+    },
+    {
+      "step": {
+        "id": "N1",
+        "user": "Jake Morales",
+        "chat": "new",
+        "question": "FYI for everyone: WELL-0007 will be shut in from 20 Jan to 29 Jan for a planned workover, and WELL-0012 from 22 Jan to 24 Jan for a flowline integrity test.",
+        "expectedFacts": [
+          "A note is recorded for WELL-0007: planned shut-in 20 to 29 Jan 2027 for a workover, attributed to Jake Morales",
+          "A note is recorded for WELL-0012: planned shut-in 22 to 24 Jan 2027 for a flowline integrity test, attributed to Jake Morales"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "5d13bcd1-97c4-4841-872a-26f636545e4c",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-MCTUL50daqVRdG8B4qRQ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-MCTUL50daqVRdG8B4qRQ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "A note is recorded for WELL-0007: planned shut-in 20 to 29 Jan 2027 for a workover, attributed to Jake Morales",
+          "A note is recorded for WELL-0012: planned shut-in 22 to 24 Jan 2027 for a flowline integrity test, attributed to Jake Morales"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-MCTUL50daqVRdG8B4qRQ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 98
+    },
+    {
+      "step": {
+        "id": "N2",
+        "user": "Emily Carter",
+        "chat": "new",
+        "question": "Show the planned shut-ins in Southwest Block 23 for the rest of January as a timeline, one bar per well, and say who reported each.",
+        "expectedFacts": [
+          "WELL-0007: 20 Jan to 29 Jan 2027, planned workover, shared by Jake Morales",
+          "WELL-0012: 22 Jan to 24 Jan 2027, flowline integrity test, shared by Jake Morales",
+          "WELL-0001's earlier planned shut-in note CTX-0001-003 (7 to 20 Oct 2026, rod string replacement) has ended and is not shown as a January shut-in",
+          "The timeline draws one bar per well from its start date to its end date"
+        ],
+        "expectedVisual": "timeline"
+      },
+      "threadId": "3f90e37b-af22-4b80-bad0-c04485cbbe58",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-dOOus1tKR2oDSGPbVrgl\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-dOOus1tKR2oDSGPbVrgl\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "WELL-0007: 20 Jan to 29 Jan 2027, planned workover, shared by Jake Morales",
+          "WELL-0012: 22 Jan to 24 Jan 2027, flowline integrity test, shared by Jake Morales",
+          "WELL-0001's earlier planned shut-in note CTX-0001-003 (7 to 20 Oct 2026, rod string replacement) has ended and is not shown as a January shut-in",
+          "The timeline draws one bar per well from its start date to its end date"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-dOOus1tKR2oDSGPbVrgl\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 89
+    },
+    {
+      "step": {
+        "id": "R1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Note for all T350 wells: our team now wants a pump jack root-cause analysis after 2 repairs, not 3.",
+        "expectedFacts": [
+          "The rule is recorded for the T350 well type only, attributed to Michael Turner, and overrides the manual's 3-repair threshold for T350 wells"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "7ba2bc2d-66c7-43e3-9eba-9633fe88f651",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-QpAKonSPoBWZlbJaiRlr\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-QpAKonSPoBWZlbJaiRlr\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The rule is recorded for the T350 well type only, attributed to Michael Turner, and overrides the manual's 3-repair threshold for T350 wells"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-QpAKonSPoBWZlbJaiRlr\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 87
+    },
+    {
+      "step": {
+        "id": "R2",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Chart pump jack corrective repairs in the last 12 months for every Southwest Block 24 well with 2 or more, as horizontal bars coloured by whether a root-cause analysis is now due, and show each well type's threshold.",
+        "expectedFacts": [
+          "Seven wells: WELL-0069 (T200, 3), WELL-0071 (T200, 2), WELL-0078 (T200, 2), WELL-0084 (T200, 2), WELL-0079 (T350, 2), WELL-0252 (T350, 2) and WELL-0260 (T350, 2)",
+          "A root-cause analysis is due for WELL-0069, WELL-0079, WELL-0252 and WELL-0260, and not for WELL-0071, WELL-0078 or WELL-0084, and the bar colours show that split",
+          "The thresholds are 2 repairs for T350 wells (Michael Turner's rule) and 3 for T200 wells (T200 manual section 10)",
+          "WELL-0079, WELL-0252 and WELL-0260 are due only because of Michael Turner's T350 rule; WELL-0071, WELL-0078 and WELL-0084 have 2 repairs too but are T200 wells, so they are not due",
+          "WELL-0069's three repairs are MNT-0069-032, MNT-0069-034 and MNT-0069-039, the last started on 15 Jan 2027 and still open",
+          "The bars are horizontal"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "fe27102d-0388-4e9d-8340-0f06b8100c2a",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-Z9HKDb7dDFik8xGzUEcQ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-Z9HKDb7dDFik8xGzUEcQ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "Seven wells: WELL-0069 (T200, 3), WELL-0071 (T200, 2), WELL-0078 (T200, 2), WELL-0084 (T200, 2), WELL-0079 (T350, 2), WELL-0252 (T350, 2) and WELL-0260 (T350, 2)",
+          "A root-cause analysis is due for WELL-0069, WELL-0079, WELL-0252 and WELL-0260, and not for WELL-0071, WELL-0078 or WELL-0084, and the bar colours show that split",
+          "The thresholds are 2 repairs for T350 wells (Michael Turner's rule) and 3 for T200 wells (T200 manual section 10)",
+          "WELL-0079, WELL-0252 and WELL-0260 are due only because of Michael Turner's T350 rule; WELL-0071, WELL-0078 and WELL-0084 have 2 repairs too but are T200 wells, so they are not due",
+          "WELL-0069's three repairs are MNT-0069-032, MNT-0069-034 and MNT-0069-039, the last started on 15 Jan 2027 and still open",
+          "The bars are horizontal"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-Z9HKDb7dDFik8xGzUEcQ\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 96
+    },
+    {
+      "step": {
+        "id": "H1",
+        "user": "Michael Turner",
+        "chat": "new",
+        "question": "Show a heatmap of 2026 spills by geographic area and month, in shades of red.",
+        "expectedFacts": [
+          "Southwest Block 23 by month Jan to Dec: 6, 5, 4, 7, 5, 4, 9, 4, 3, 5, 3, 14 (total 69); Southwest Block 24: 8, 4, 6, 6, 6, 5, 5, 2, 7, 4, 2, 7 (total 62)",
+          "Northeast Block 7 by month Jan to Dec: 6, 3, 3, 4, 6, 7, 4, 4, 5, 2, 9, 8 (total 61); Northeast Block 8: 6, 4, 5, 5, 2, 5, 5, 2, 3, 2, 6, 7 (total 52)",
+          "Southeast Block 31 by month Jan to Dec: 1, 1, 6, 1, 3, 5, 3, 0, 1, 3, 5, 4 (total 33); Southeast Block 32: 6, 3, 7, 8, 5, 10, 6, 7, 4, 13, 11, 12 (total 92)",
+          "Northwest Block 12 by month Jan to Dec: 4, 5, 7, 13, 9, 10, 12, 11, 9, 13, 12, 12 (total 117, the highest of the seven areas)",
+          "The heatmap's colours are shades of red"
+        ],
+        "expectedVisual": "heatmap"
+      },
+      "threadId": "0470d4f1-807e-4b71-8742-391fe0d01bbb",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-pZi2RyCguLjm3RKv7vLv\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-pZi2RyCguLjm3RKv7vLv\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "Southwest Block 23 by month Jan to Dec: 6, 5, 4, 7, 5, 4, 9, 4, 3, 5, 3, 14 (total 69); Southwest Block 24: 8, 4, 6, 6, 6, 5, 5, 2, 7, 4, 2, 7 (total 62)",
+          "Northeast Block 7 by month Jan to Dec: 6, 3, 3, 4, 6, 7, 4, 4, 5, 2, 9, 8 (total 61); Northeast Block 8: 6, 4, 5, 5, 2, 5, 5, 2, 3, 2, 6, 7 (total 52)",
+          "Southeast Block 31 by month Jan to Dec: 1, 1, 6, 1, 3, 5, 3, 0, 1, 3, 5, 4 (total 33); Southeast Block 32: 6, 3, 7, 8, 5, 10, 6, 7, 4, 13, 11, 12 (total 92)",
+          "Northwest Block 12 by month Jan to Dec: 4, 5, 7, 13, 9, 10, 12, 11, 9, 13, 12, 12 (total 117, the highest of the seven areas)",
+          "The heatmap's colours are shades of red"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-pZi2RyCguLjm3RKv7vLv\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 91
+    },
+    {
+      "step": {
+        "id": "H2",
+        "user": "Michael Turner",
+        "chat": "continue",
+        "question": "Same numbers, but as grouped bars per month with one colour per area, plus a line for the fleet total.",
+        "expectedFacts": [
+          "Grouped bars per month Jan to Dec 2026, one colour per area for all seven areas, with the same counts as the heatmap",
+          "A line shows the fleet total per month: 37, 25, 38, 44, 36, 46, 44, 30, 32, 42, 48, 64 (486 in all)"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "0470d4f1-807e-4b71-8742-391fe0d01bbb",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-yJMT3r4z8MDD9WkBqDzL\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-yJMT3r4z8MDD9WkBqDzL\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "Grouped bars per month Jan to Dec 2026, one colour per area for all seven areas, with the same counts as the heatmap",
+          "A line shows the fleet total per month: 37, 25, 38, 44, 36, 46, 44, 30, 32, 42, 48, 64 (486 in all)"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236493-yJMT3r4z8MDD9WkBqDzL\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 63
+    },
+    {
+      "step": {
+        "id": "E1",
+        "user": "Emily Carter",
+        "chat": "new",
+        "question": "For the top three wells from my spill-volume ranking earlier, show their 2026 repair costs as a stacked bar chart split by equipment kind.",
+        "expectedFacts": [
+          "The three wells are WELL-0005, WELL-0013 and WELL-0042, from Emily Carter's earlier ranking",
+          "WELL-0005: USD 41,418 in all (flowline 27,623; pump jack 11,113; wellhead 2,682)",
+          "WELL-0013: USD 69,738 in all (flowline 30,609; pump jack 25,175; rod string 12,274; wellhead 1,680)",
+          "WELL-0042: USD 30,034 in all (flowline 21,625; pump jack 6,558; wellhead 1,851)",
+          "The bars are stacked by equipment kind"
+        ],
+        "expectedVisual": "bar_chart"
+      },
+      "threadId": "347c0bb4-63d2-48bc-bb4a-f1c1d35495e8",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-gLqksGHGOksg0h2B6yik\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-gLqksGHGOksg0h2B6yik\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The three wells are WELL-0005, WELL-0013 and WELL-0042, from Emily Carter's earlier ranking",
+          "WELL-0005: USD 41,418 in all (flowline 27,623; pump jack 11,113; wellhead 2,682)",
+          "WELL-0013: USD 69,738 in all (flowline 30,609; pump jack 25,175; rod string 12,274; wellhead 1,680)",
+          "WELL-0042: USD 30,034 in all (flowline 21,625; pump jack 6,558; wellhead 1,851)",
+          "The bars are stacked by equipment kind"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-gLqksGHGOksg0h2B6yik\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 64
+    },
+    {
+      "step": {
+        "id": "U1",
+        "user": "Emily Carter",
+        "chat": "new",
+        "question": "From now on show temperatures in Fahrenheit. Is WELL-0397 producing oil right now?",
+        "expectedFacts": [
+          "The Fahrenheit preference is saved for Emily Carter",
+          "WELL-0397 is not producing oil: at the latest inspection INS-0397-0219 on 14 Jan 2027 (Brandon Shaw, manual) the wellhead was 57.0 °F and the air 47.7 °F, only about 9.4 °F warmer",
+          "The T200 producing threshold is given in Fahrenheit as 27 °F above the air (15 °C)",
+          "The reason is a parted sucker rod: the well was shut in for rod string repair MNT-0397-032, in progress since 9 Jan 2027 with a planned finish of 20 Jan 2027, and the recorded status (active) is out of date"
+        ],
+        "expectedVisual": "none"
+      },
+      "threadId": "26de56ed-abef-4836-9204-6b8a8ea4cbf2",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-oZNHbVCtQTnP3XhhGU8d\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-oZNHbVCtQTnP3XhhGU8d\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "The Fahrenheit preference is saved for Emily Carter",
+          "WELL-0397 is not producing oil: at the latest inspection INS-0397-0219 on 14 Jan 2027 (Brandon Shaw, manual) the wellhead was 57.0 °F and the air 47.7 °F, only about 9.4 °F warmer",
+          "The T200 producing threshold is given in Fahrenheit as 27 °F above the air (15 °C)",
+          "The reason is a parted sucker rod: the well was shut in for rod string repair MNT-0397-032, in progress since 9 Jan 2027 with a planned finish of 20 Jan 2027, and the recorded status (active) is out of date"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-oZNHbVCtQTnP3XhhGU8d\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 84
+    },
+    {
+      "step": {
+        "id": "U2",
+        "user": "Emily Carter",
+        "chat": "continue",
+        "question": "Chart its last 4 weekly readings.",
+        "expectedFacts": [
+          "Four readings in Fahrenheit: 24 Dec 2026 wellhead 87.8 °F / air 52.2 °F, 31 Dec 87.8 / 54.3, 7 Jan 2027 61.3 / 51.8, 14 Jan 57.0 / 47.7",
+          "The wellhead line is red and the air line is blue, following Emily Carter's saved colour preference"
+        ],
+        "expectedVisual": "line_chart"
+      },
+      "threadId": "26de56ed-abef-4836-9204-6b8a8ea4cbf2",
+      "answer": "\nroot = Stack([copilotNotice])\ncopilotNotice = Callout(\"error\", \"Model error\", \"403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-desQQTNGaykb2Yd7x4eF\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}\")\n",
+      "toolCalls": [],
+      "error": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-desQQTNGaykb2Yd7x4eF\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}",
+      "grade": {
+        "pass": false,
+        "matchedFacts": [],
+        "missedFacts": [
+          "Four readings in Fahrenheit: 24 Dec 2026 wellhead 87.8 °F / air 52.2 °F, 31 Dec 87.8 / 54.3, 7 Jan 2027 61.3 / 51.8, 14 Jan 57.0 / 47.7",
+          "The wellhead line is red and the air line is blue, following Emily Carter's saved colour preference"
+        ],
+        "sourcesCited": false,
+        "visualMatches": false,
+        "comment": "Model error: 403 {\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"permission_error\\\",\\\"message\\\":\\\"Key limit exceeded (total limit). Manage it using https://openrouter.ai/workspaces/default/keys/857e5ef705df4230dc5eb8fc6a11df61b7a8ea4fa32516bc45caf206348cd2d3 $5.00 of $5.00 used; does not reset.\\\",\\\"error_type\\\":\\\"permission_denied\\\"},\\\"request_id\\\":\\\"gen-1792236494-desQQTNGaykb2Yd7x4eF\\\",\\\"metadata\\\":{\\\"limit_source\\\":\\\"openrouter_key_limit\\\",\\\"remedy_hint\\\":\\\"Raise or remove this API key's usage limit at https://openrouter.ai/settings/keys, or use a key without a limit.\\\",\\\"scope\\\":\\\"key_limit\\\",\\\"limit_usd\\\":5,\\\"spend_usd\\\":5.002752057,\\\"resets_at\\\":null}}"
+      },
+      "model": "anthropic/claude-haiku-5.5",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "costUsd": 0,
+      "latencyMs": 444
+    }
+  ]
+}

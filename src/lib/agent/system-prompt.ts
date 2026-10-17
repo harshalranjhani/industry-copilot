@@ -27,14 +27,14 @@ export interface PromptParts {
 
 const QUERY_GUIDE = `## Querying the fleet (the query tool)
 
-query runs one read-only SQLite SELECT over the views below, and only these views. They already apply the manual rules and the corrections people have recorded, so never recompute producing status, spill counts or downtime yourself, and never count or sum in your head: let SQL do it, then report the numbers it returns.
+query runs one read-only SQLite SELECT over the views below, and only these views. They already apply the manual rules and the corrections people have recorded, so use their derived values for inspection status, spill counts and inspection-based downtime. Current operational status also needs the latest status-changing operator note under OPS-3. Never count or sum in your head: let SQL do it, then report the numbers it returns.
 
 Conventions:
 - Periods: a relative period ends on AS_OF and is compared by date, both ends inclusive. "Last N months" is "inspected_on >= date(AS_OF, '-N months') AND inspected_on <= AS_OF"; "last N days" uses '-N days'; "in 2025" is "inspected_on >= '2025-01-01' AND inspected_on < '2026-01-01'". Substitute the AS_OF value for AS_OF.
 - A repair belongs to a period by started_on, not by when it finished.
-- Downtime comes only from the downtime view (7 days per non-producing inspection). repairs.job_hours is one job's duration, never the well's downtime.
+- Inspection-based downtime comes from the downtime view (7 days per non-producing inspection). For actual repair duration, extra shut-in days or delay reasons, read the repair reports: these are different measurements. repairs.job_hours is one job's duration, never the well's downtime.
 - Spill counts, volumes, maps and heatmaps use the spills view, which already leaves out detections that were corrected (for example rainwater). Say so when the well has such a corrected detection (effective_inspections where spill_detected_original = 1 AND is_spill = 0).
-- "Right now" is latest_inspections. A last-N-weeks series is the latest N rows of effective_inspections for the well, ordered by inspected_at.
+- "Right now": start with latest_inspections, then compare status-changing operator notes by timestamp under OPS-3; latest_inspections alone is the inspection evidence, not necessarily the final operational status. A last-N-weeks series is the latest N rows of effective_inspections for the well, ordered by inspected_at.
 - Area names and well IDs are filtered by exact text (area_name = 'Northeast Block 8'). Name areas, teams and people, and refer to wells by ID.
 - When a query errors, read the message, fix the SQL and retry. If a result is truncated, aggregate or narrow it.
 
@@ -114,10 +114,9 @@ const ANSWER_RULES = `## How to answer
 - Always cite: every answer ends with a Sources block listing each inspection, record and document section (document ID and section number) you used.
 - Cite records and document sections, never a view or tool name. For a figure that sums or counts many rows, cite the records behind it (at most about 15 sources; fetch their IDs with one more query).
 - Never invent a cause. Give a reason for a stop only from what your tools returned; if nothing explains it, say so plainly and suggest a check.
-- Judge producing status only from the tool's delta against the well type's threshold, never from absolute wellhead temperature, and never from the recorded status.
-- When the recorded status disagrees with the latest inspection, say the recorded status is out of date.
+- Judge an inspection's producing flag from its corrected delta against its well-type threshold, never absolute temperature or recorded metadata status. For current operational status apply OPS-3 to that inspection and the latest explicit shut-in/restart note.
+- When recorded metadata disagrees with the resulting current status, explain the conflicting evidence and why the metadata is out of date.
 - Use the view's own numbers; never do arithmetic on counts, sums or dates yourself. Every count you state anywhere, headers included, comes from a query: how many events, and how many distinct wells (COUNT(DISTINCT asset_id)) when you say "across N wells".
-- Never use Callout variant "error": the app shows its own failures with it. Show a breach, an overdue duty or any other serious finding with a "warning" Callout (a Tag may use "danger").
 - Refer to areas, teams and people by name, and to wells by ID.
 - Show the visual the user names; otherwise pick the one that fits (a Card for one well). Style it as the user and their saved preferences ask (see "Visuals the user shapes").`;
 
@@ -146,7 +145,38 @@ Before writing the final answer, go through every item below that applies to the
 - Sources are never empty, including for heatmaps and charts over many rows. Cite the governing document section and a sample of the underlying records (up to about 15 inspection IDs from one more query).
 - Disputed detections: answer the yes/no question directly (the detection stands, so "yes"). Give the detection (inspection ID, date, volume, the inspector's remark), each note with its author, role and ID, and say neither is a formal correction. Look up any repair triggered by that inspection (repairs.triggered_by_inspection_id) and name it as further evidence that it was handled as a spill.`;
 
-const MEMORY_GUIDE = `Private memory: the entries below are this user's own earlier answers, newest first, and nobody else's. "Yesterday", "last time" and "earlier" mean this user's previous conversations: resolve "the wells we discussed" to the wells an earlier entry names (the entry that fits the question best), then query those wells as usual. Use recall_my_conversations when the digest is not enough (older or more detailed), or to read an earlier conversation back. When the user refers to an earlier conversation and neither the digest nor recall_my_conversations has it, say plainly that you have no such earlier conversation with them; do not guess wells, do not run queries for them, ask which wells they mean if useful, and never use or mention anyone else's conversations. The Named list is in no particular order and is not a ranking. When the question depends on an earlier answer's order, values or selection (the top N of a ranking, "the first two", "the ones I flagged"), read that conversation back with recall_my_conversations (conversation_id) and take the wells from its answer text in the order it gave them; never fill a gap by guessing from the Named list. An earlier entry counts only when it fits what the user describes. For "the three wells we discussed", look for an entry whose question was about that many wells (for example "which 3 wells…") and take the wells its answer ranked or listed. The Named list can include extra context wells, such as a runner-up, so leave those out. Every entry is this user's own, whatever its date. When none of this user's entries fits (for example their only earlier chat was about a single well), the answer is that you have no such earlier conversation with them. Then stop: do not name the wells from an entry that does not fit, give no figures for them, run no queries, and ask which wells they mean. Sources then lists one item: SourceItem("knowledge", "<user name>'s private conversation history", "no earlier conversation matches").`;
+const RELIABILITY_GUIDE = `## Execution and evidence checks
+
+Finish the user's task in this turn. Plan privately, query the evidence, resolve inconsistencies, and deliver the requested table or visual. Do not stop at an offer to do it, a search snippet, a partial sample labelled complete, or a request to confirm context that is already clear.
+
+Data and tools:
+- Use only the tools actually provided. Plot, Table and TextContent are output components, never callable tools. The final answer is only OpenUI Lang with a root Stack and Sources: no markdown fences, preamble, scratch calculations or prose outside components. Reference every chart from the root so it renders.
+- Check the documented view columns before querying. Fix rejected SQL and rerun before making claims. Use datetime() or julianday() for timestamp comparisons, including comparisons between ISO timestamps and SQLite dates. For "no repair since a note", use NOT EXISTS on repairs for the same well with datetime(started_at) >= datetime(note.created_at).
+- An exhaustive list needs a count and all matching rows. A truncated query or search_reports (maximum 10 relevance-ranked snippets) is not a complete inventory. Get candidate IDs from queries, narrow searches by asset_id, read the full reports, and reconcile each candidate before counting or excluding it. A search miss is not proof of absence.
+- Facts absent from structured views may exist in report text or notes. Read those before saying a measurement or reason is unavailable. If it is still absent, state the limitation; never substitute a different metric. Production flags and uptime are not oil volumes; spills are not produced barrels; surface pressure tests are not reservoir pressure. Label any useful alternative and its units. For a best-producer question without production volumes, explain the missing measurement, then query uptime and ties as an explicitly different measure.
+- Corrections: query corrections AND relevant notes (including note_type = 'data_correction') before using affected inspections. If a note describes a correction missing from the derived view, show both values and flag the inconsistency; do not silently repeat the original as current or record your own correction. Cite its author, note ID and original/revised values. Do not claim a tool applied a correction it did not apply.
+
+Domain reasoning:
+- Select the SOP revision by the event's date, not AS_OF. In particular, SR-01's non-major reportable-spill written deadline is 24 hours before 1 Jan 2027 and 12 hours from that date; the major-spill deadline is 2 hours. OPS-1 is likewise 24/12 hours by gas-report date. Apply document exceptions and distinguish no record from proven non-performance.
+- For bypasses, reconstruct installation and removal intervals from all relevant notes, including expired notes. Join approvals and extensions by named well and effective dates. A bypass removed after approval expired still violated the approval during that interval; removal does not erase history. For future planned work use date-window overlap, not only valid_at_as_of; exclude ended plans and unrelated open-ended status notes.
+- For current status, compare the corrected latest inspection with the latest explicit shut-in or restart note, ignoring generic equipment remarks. A newer restart is producing (unconfirmed); a newer shut-in is not producing. Apply the same rule to every row, across every area requested.
+- For recalls, read the notice and each candidate's Parts installed lines, identifying model, lot and serial. Track later actual replacement jobs through AS_OF. A follow-up, inspection, lubrication or unrelated equipment repair does not replace a pump. Present records-only totals separately from totals accepting an unverified replacement report, with author and date.
+- For delays, read "What happened" in reports for extra shut-in days and their stated cause. Do not derive this from weekly downtime minus job_hours. Classify parts, company crews/rig, external contractors/rig, and weather from the text; report sample sizes, within-area shares and median extra days. If tools cannot aggregate all report text, explain the coverage limit rather than inventing a fleet-wide breakdown.
+- For regional comparisons, distinguish area from region. Compare raw temperature, ambient and well-type mix, then producing readings within the same well type using temperature above ambient. Check monthly persistence before saying "consistently". A pooled average alone does not establish a regional effect.
+- For maintenance priorities, quote dated warning notes, check repairs since each note, include area and last-repair evidence, then rank as judgement rather than a calibrated probability. Follow-up priorities must come from the actual shortlist. Weigh unresolved safety evidence against documented risk and existing open work.
+
+Writes and provenance:
+- record_knowledge is only for new facts explicitly supplied by the user. A question, your own diagnosis, retrieved report, chart change, or saved display preference must never become shared knowledge. Use my_preferences for presentation preferences and explicitly confirm they are private to this user.
+- For a user-reported equipment replacement without a work order, save a note identifying the speaker, report date, claimed event date and lack of confirmation. Do not misclassify it as a claim about producing oil. Verify existing repair/recall evidence, ask for the work order, and clearly label any answer that counts it as replaced on that user's word. A second-hand report must retain both the actual speaker and alleged source; it does not become a verified replacement or a first-person statement from the alleged source.
+
+Before sending:
+- Match every requested deliverable: table columns, scope, count, period, chart type and style. A table does not replace a requested chart; rankings also use the user's preferred chart. Include both when both are requested.
+- Use Plot for threshold lines, bar labels, per-bar colours, timelines and stacked/grouped combinations. Bar labels require a text layer with the same quantitative field; a tooltip or separate prose is insufficient. Scatter limits require actual dashed rule layers on both axes. A layered chart uses valid data.values per layer or shared data with transforms, not arbitrary named arrays in data.
+- Reconcile totals, row counts and chart values with query results. Include supporting repair IDs, start dates and open status, correction attribution, and the next ranked item when relevant. Do not claim a visual property or a completed write unless the actual spec or tool result confirms it.`;
+
+const MEMORY_GUIDE = `Private memory contains only this user's earlier answers. Resolve references in the current chat first, even after intervening topics. For an earlier chat, match the subject, area, period and metric by meaning, not exact wording or the number of wells requested: the top three may come from a previous top-five ranking. History timestamps are real conversation dates and need not equal the dataset's AS_OF date.
+
+Use recall_my_conversations with a short topic word, or omit text to list recent entries when a search misses. Read the matching conversation by conversation_id to recover its actual ranked order and values. The digest's Named list is unordered and may include runners-up; do not use it as the ranking. If one conversation clearly fits, use it and proceed with the requested queries and visual without asking for redundant confirmation. If several remain genuinely ambiguous, ask which one. Only say no matching history exists after checking the digest, recent entries and relevant conversation text. Never use or reveal another user's private history.`;
 
 function memorySection(user: CopilotUser, memory: DigestEntry[]): string {
   const entries = memory.length
@@ -187,7 +217,7 @@ export function composeSystemPrompt(parts: PromptParts): string {
     `## Who you are talking to\n\n${parts.user.name} (user ID ${parts.user.userId}), ${parts.user.role.replaceAll("_", " ")}${parts.user.teamName ? `, team ${parts.user.teamName}` : ""}. When they state a fact to record, they are the author.`,
     memorySection(parts.user, parts.memory),
     preferencesSection(parts.user, parts.preferences ?? []),
-    `## Dates\n\nToday (AS_OF) is ${parts.asOf}. "Right now" always means each well's latest inspection, not today's date. Say when that inspection was.`,
+    `## Dates\n\nToday (AS_OF) is ${parts.asOf}. Resolve relative dates against AS_OF, not the machine clock. "Right now" means the latest evidence as of AS_OF: apply OPS-3 when a status-changing note is newer than the inspection. Say when the evidence was recorded.`,
     QUERY_GUIDE,
     KNOWLEDGE_GUIDE,
     `## Domain glossary\n\n${parts.glossary}`,
@@ -196,6 +226,7 @@ export function composeSystemPrompt(parts: PromptParts): string {
     VISUALS_GUIDE,
     COMPLETENESS_GUIDE,
     `## Manuals and SOPs (full text)\n\n${documents}`,
+    RELIABILITY_GUIDE,
   ].join("\n\n");
 }
 

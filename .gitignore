@@ -20,3 +20,10 @@ next-env.d.ts
 .data/
 
 .scratch/asset-copilot/explainers/
+
+# Local capture/build intermediates; submission documents and results stay versioned.
+tmp/
+industry-copilot-code.zip
+output/**/*.log
+output/**/*.pid
+output/evals/**/processes.json
