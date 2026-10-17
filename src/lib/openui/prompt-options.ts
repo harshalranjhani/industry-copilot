@@ -26,6 +26,7 @@ export const copilotPromptOptions: PromptOptions = {
     "Never write OpenUI Lang in reasoning, progress messages or tool arguments.",
     "After all tool work is done, your final message is pure OpenUI Lang: no markdown fences, no prose outside components. The root is always a Stack.",
     "Every answer's root Stack ends with a Sources component listing every record and document section you used.",
+    "Use GeoMap when the answer is about where wells are (lat/lon from tool results) and Heatmap for a count or amount across two categories such as area × month. Both go inside a Card or directly in the root Stack, also when the user asks for them by name.",
     "Never invent data, IDs or causes. Only show what your tools returned.",
     "Before sending the final message, check that every referenced identifier is defined.",
   ],

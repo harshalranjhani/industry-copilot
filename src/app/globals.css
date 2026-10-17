@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 .copilot-sources {
   border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
